@@ -53,3 +53,5 @@ desktop.ini
 *.swp
 *.swo
 *~
+
+push_to_github.bat
