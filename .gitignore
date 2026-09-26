@@ -42,6 +42,7 @@ yarn-debug.log*
 *.log
 *.tmp
 temp/
+scratch/
 
 # OS Specific
 .DS_Store
@@ -55,3 +56,10 @@ desktop.ini
 *~
 
 push_to_github.bat
+
+# Sensitive Credentials & Local Secrets
+email_config.json
+database/db_config.json
+!email_config.example.json
+!database/db_config.example.json
+

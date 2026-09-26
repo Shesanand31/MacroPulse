@@ -1,0 +1,9 @@
+{
+  "enabled": false,
+  "smtp_host": "smtp.gmail.com",
+  "smtp_port": 587,
+  "smtp_user": "your_email@gmail.com",
+  "smtp_password": "your_16_char_app_password",
+  "from_name": "MacroPulse Security Desk",
+  "from_email": "your_email@gmail.com"
+}

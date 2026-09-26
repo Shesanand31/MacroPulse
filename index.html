@@ -14,8 +14,11 @@
   <script src="https://unpkg.com/lucide@latest"></script>
   <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
 
+  <!-- Google Identity Services (OAuth 2.0 / GIS) SDK -->
+  <script src="https://accounts.google.com/gsi/client" async defer onload="window.onGoogleLibraryLoad &amp;&amp; window.onGoogleLibraryLoad()"></script>
+
   <!-- Main Stylesheet -->
-  <link rel="stylesheet" href="css/styles.css?v=20260914-no-guest" />
+  <link rel="stylesheet" href="css/styles.css?v=20260916-google-sso-v12" />
 </head>
 <body>
 
@@ -79,16 +82,11 @@
           <i data-lucide="user-cog" class="nav-icon"></i>
           <span>Profile & Settings</span>
         </a>
-
-        <a class="nav-item" id="navAuthModalTrigger">
-          <i data-lucide="shield-check" class="nav-icon"></i>
-          <span>Auth Portal</span>
-        </a>
       </nav>
 
       <div class="sidebar-footer">
         <div class="user-profile-badge" id="profileBadge" title="User Profile">
-          <img src="https://images.unsplash.com/photo-1534528741775-53994a69daeb?w=100&auto=format&fit=crop&q=80" alt="Avatar" class="avatar" id="sidebarAvatar" />
+          <img src="https://images.unsplash.com/photo-1534528741775-53994a69daeb?w=100&auto=format&fit=crop&q=80" alt="Avatar" class="avatar" id="sidebarAvatar" onerror="this.onerror=null; this.src='https://images.unsplash.com/photo-1534528741775-53994a69daeb?w=160&auto=format&fit=crop&q=80';" />
           <div class="user-info">
             <span class="user-name" id="sidebarUserName">Alex Morgan</span>
             <span class="user-role" id="sidebarUserRole">Senior Market Analyst</span>
@@ -152,7 +150,7 @@
             <!-- Logged In User Pill & Logout Button -->
             <div id="headerUserWrap" style="display: flex; align-items: center; gap: 8px;">
               <div class="header-user-pill" id="headerUserProfile" title="Alex Morgan (Senior Market Analyst)">
-                <img src="https://images.unsplash.com/photo-1534528741775-53994a69daeb?w=100&auto=format&fit=crop&q=80" alt="Avatar" class="avatar-sm" id="headerUserAvatar" />
+                <img src="https://images.unsplash.com/photo-1534528741775-53994a69daeb?w=100&auto=format&fit=crop&q=80" alt="Avatar" class="avatar-sm" id="headerUserAvatar" onerror="this.onerror=null; this.src='https://images.unsplash.com/photo-1534528741775-53994a69daeb?w=160&auto=format&fit=crop&q=80';" />
                 <span class="user-pill-name" id="headerUserName">Alex M.</span>
               </div>
               <button class="btn btn-secondary" id="headerLogoutBtn" style="padding: 6px 12px; font-size: 0.8rem; gap: 6px; color: #f87171; border-color: rgba(239, 68, 68, 0.35); background: rgba(239, 68, 68, 0.08);" title="Log Out of Session">
@@ -588,8 +586,9 @@
                 </div>
                 <div style="font-size: 0.75rem; color: var(--text-muted);" id="stockCompanyName">Malayan Banking Berhad • Financial Services</div>
               </div>
-              <div style="display: flex; align-items: baseline; gap: 10px; margin-left: 12px;">
+              <div style="display: flex; align-items: baseline; gap: 10px; margin-left: 12px; flex-wrap: wrap;">
                 <span class="pair-price" id="tradePairPrice">RM 10.46</span>
+                <span class="base-currency-badge" id="tradeBaseCurrencyBadge" style="display: none; font-size: 0.78rem; font-weight: 700; color: #38bdf8; background: rgba(56, 189, 248, 0.15); border: 1px solid rgba(56, 189, 248, 0.3); padding: 2px 8px; border-radius: 4px;"></span>
                 <span class="delta-badge up" id="tradePairDelta">+0.10 (+0.97%)</span>
               </div>
             </div>
@@ -634,14 +633,17 @@
             <div class="card">
               <div class="card-header" style="flex-wrap: wrap; gap: 8px;">
                 <span class="card-title"><i data-lucide="candlestick-chart" style="width: 18px; height: 18px; color: var(--primary-light);"></i> Candlestick Analysis with Moving Averages</span>
-                <div style="display: flex; gap: 12px; align-items: center; font-size: 0.75rem;">
-                  <span style="display: inline-flex; align-items: center; gap: 5px; color: #facc15; font-weight: 500;">
-                    <span style="display: inline-block; width: 10px; height: 2.5px; background: #facc15; border-radius: 1px;"></span> EMA 20
-                  </span>
-                  <span style="display: inline-flex; align-items: center; gap: 5px; color: #38bdf8; font-weight: 500;">
-                    <span style="display: inline-block; width: 10px; height: 2px; border-top: 2px dashed #38bdf8;"></span> EMA 50
-                  </span>
-                  <span style="display: inline-flex; align-items: center; gap: 5px; color: var(--text-muted);">
+                <div style="display: flex; gap: 8px; align-items: center; font-size: 0.75rem; flex-wrap: wrap;">
+                  <span style="color: var(--text-dim); font-size: 0.7rem; font-weight: 500;">Overlays:</span>
+                  <button type="button" class="tech-overlay-btn active" id="toggleEma20Btn" title="Toggle EMA 20 Overlay">
+                    <span class="overlay-line ema20-line"></span>
+                    <span>EMA 20</span>
+                  </button>
+                  <button type="button" class="tech-overlay-btn active" id="toggleEma50Btn" title="Toggle EMA 50 Overlay">
+                    <span class="overlay-line ema50-line"></span>
+                    <span>EMA 50</span>
+                  </button>
+                  <span style="display: inline-flex; align-items: center; gap: 5px; color: var(--text-muted); margin-left: 4px;">
                     <span style="display: inline-block; width: 8px; height: 8px; background: #10b981; border-radius: 1px;"></span> Bull
                   </span>
                   <span style="display: inline-flex; align-items: center; gap: 5px; color: var(--text-muted);">
@@ -1088,9 +1090,11 @@
                     <strong style="color: #c084fc;" id="tipRealYield">+1.88%</strong>
                   </div>
                 </div>
-                <div style="margin-top: 8px; padding-top: 6px; border-top: 1px solid rgba(255,255,255,0.08); font-size: 0.70rem; color: var(--text-muted); display: flex; justify-content: space-between;">
+                <div style="margin-top: 8px; padding-top: 6px; border-top: 1px solid rgba(255,255,255,0.08); font-size: 0.70rem; color: var(--text-muted); display: flex; justify-content: space-between; align-items: center; gap: 8px;">
                   <span id="tipSpotFx">USD/MYR 4.385</span>
-                  <span style="color: var(--accent-cyan);">Click to inspect curve &rarr;</span>
+                  <button type="button" class="tip-inspect-curve-btn" id="tipInspectCurveBtn">
+                    <span>Click to inspect curve</span> &rarr;
+                  </button>
                 </div>
               </div>
             </div>
@@ -1581,7 +1585,7 @@
             <div style="display: flex; align-items: center; justify-content: space-between; flex-wrap: wrap; gap: 16px;">
               <div style="display: flex; align-items: center; gap: 18px;">
                 <div style="position: relative;">
-                  <img src="https://images.unsplash.com/photo-1534528741775-53994a69daeb?w=160&auto=format&fit=crop&q=80" class="avatar-large" id="profileHeroAvatar" alt="Profile" style="width: 68px; height: 68px; border-radius: 50%; border: 3px solid var(--primary-light); object-fit: cover;" />
+                  <img src="https://images.unsplash.com/photo-1534528741775-53994a69daeb?w=160&auto=format&fit=crop&q=80" class="avatar-large" id="profileHeroAvatar" alt="Profile" style="width: 68px; height: 68px; border-radius: 50%; border: 3px solid var(--primary-light); object-fit: cover;" onerror="this.onerror=null; this.src='https://images.unsplash.com/photo-1534528741775-53994a69daeb?w=160&auto=format&fit=crop&q=80';" />
                   <span style="position: absolute; bottom: 2px; right: 2px; width: 14px; height: 14px; background: #10b981; border: 2px solid #0f172a; border-radius: 50%;" title="Active Session"></span>
                 </div>
                 <div>
@@ -1609,48 +1613,81 @@
             </div>
           </div>
 
-          <div class="settings-grid">
-            <!-- Personal Info & Credentials Card -->
+          <!-- Settings Tab Navigation Bar -->
+          <div class="settings-tabs-nav" id="settingsTabsNav">
+            <button type="button" class="settings-tab-btn active" data-settings-tab="profile">
+              <i data-lucide="user" style="width: 16px; height: 16px;"></i>
+              <span>General Profile</span>
+            </button>
+            <button type="button" class="settings-tab-btn" data-settings-tab="workspace">
+              <i data-lucide="sliders-horizontal" style="width: 16px; height: 16px;"></i>
+              <span>Workspace &amp; Defaults</span>
+            </button>
+            <button type="button" class="settings-tab-btn" data-settings-tab="notifications">
+              <i data-lucide="bell" style="width: 16px; height: 16px;"></i>
+              <span>Alerts &amp; Bulletins</span>
+            </button>
+            <button type="button" class="settings-tab-btn" data-settings-tab="security">
+              <i data-lucide="shield-check" style="width: 16px; height: 16px;"></i>
+              <span>Security &amp; Password</span>
+            </button>
+          </div>
+
+          <!-- TAB 1: GENERAL PROFILE -->
+          <div class="settings-tab-pane active" id="settingsTabProfile">
             <div class="card">
               <div class="card-header">
                 <div>
                   <h3 class="card-title"><i data-lucide="user" style="width: 18px; height: 18px; color: var(--primary-light);"></i> Personal Information &amp; Analyst Profile</h3>
-                  <p class="card-subtitle">Manage your account credentials, regional desk, and market display settings</p>
+                  <p class="card-subtitle">Manage your account credentials, regional desk, and institutional identity</p>
                 </div>
               </div>
               <div class="card-body">
-                
                 <!-- Avatar Upload Row -->
                 <div class="avatar-uploader-row">
-                  <img src="https://images.unsplash.com/photo-1534528741775-53994a69daeb?w=160&auto=format&fit=crop&q=80" class="avatar-large" id="settingsAvatarPreview" alt="Profile Preview" />
+                  <img src="https://images.unsplash.com/photo-1534528741775-53994a69daeb?w=160&auto=format&fit=crop&q=80" class="avatar-large" id="settingsAvatarPreview" alt="Profile Preview" onerror="this.onerror=null; this.src='https://images.unsplash.com/photo-1534528741775-53994a69daeb?w=160&auto=format&fit=crop&q=80';" />
                   <div>
                     <label class="btn btn-secondary" style="cursor: pointer;">
                       <i data-lucide="upload" style="width: 15px; height: 15px;"></i>
                       <span>Upload New Avatar</span>
                       <input type="file" id="avatarFileInput" accept="image/*" style="display: none;" />
                     </label>
-                    <p style="font-size: 0.72rem; color: var(--text-muted); margin-top: 6px;">PNG, JPG, or GIF up to 5MB • Instant synchronization</p>
+                    <p style="font-size: 0.72rem; color: var(--text-muted); margin-top: 6px;">PNG, JPG, or GIF up to 5MB • Instant synchronization across terminal</p>
                   </div>
                 </div>
 
-                <div class="form-group">
-                  <label class="form-label">Full Name</label>
-                  <input type="text" class="form-input" id="settingsFullName" value="Alex Morgan" />
+                <div class="settings-grid-equal">
+                  <div class="form-group">
+                    <label class="form-label">Full Name</label>
+                    <input type="text" class="form-input" id="settingsFullName" value="Alex Morgan" />
+                    <span class="form-error-hint" id="settingsFullNameError"></span>
+                  </div>
+                  <div class="form-group">
+                    <label class="form-label">Email Address</label>
+                    <input type="email" class="form-input" id="settingsEmail" value="alex.morgan@macropulse.ai" />
+                    <span class="form-error-hint" id="settingsEmailError"></span>
+                  </div>
                 </div>
 
-                <div class="form-group">
-                  <label class="form-label">Email Address</label>
-                  <input type="email" class="form-input" id="settingsEmail" value="alex.morgan@macropulse.ai" />
-                </div>
-
-                <div class="form-group">
-                  <label class="form-label">Professional Role / Title</label>
-                  <input type="text" class="form-input" id="settingsRole" value="Senior Macro Strategist &amp; Equity Analyst" />
-                </div>
-
-                <div class="form-group">
-                  <label class="form-label">Research Desk &amp; Department</label>
-                  <input type="text" class="form-input" id="settingsDesk" value="MacroPulse Sovereign Macro &amp; Bursa Equities Division" />
+                <div class="settings-grid-equal">
+                  <div class="form-group">
+                    <label class="form-label">Professional Role / Title</label>
+                    <select class="form-select" id="settingsRole">
+                      <option value="Macroeconomic Strategist">Macroeconomic Strategist</option>
+                      <option value="Equities Portfolio Manager">Equities Portfolio Manager</option>
+                      <option value="Treasury & FX Analyst">Treasury & FX Analyst</option>
+                      <option value="Quantitative / Retail Investor">Quantitative / Retail Investor</option>
+                      <option value="Student">Student</option>
+                      <option value="Other">Other</option>
+                    </select>
+                    <div id="settingsRoleCustomWrap" style="display: none; margin-top: 8px;">
+                      <input type="text" class="form-input" id="settingsRoleCustom" placeholder="Specify your custom role / title..." />
+                    </div>
+                  </div>
+                  <div class="form-group">
+                    <label class="form-label">Research Desk &amp; Department</label>
+                    <input type="text" class="form-input" id="settingsDesk" value="MacroPulse Sovereign Macro &amp; Bursa Equities Division" />
+                  </div>
                 </div>
 
                 <div class="form-group">
@@ -1668,15 +1705,127 @@
                   <label class="form-label">Bio / Profile Description</label>
                   <textarea class="form-textarea" id="settingsBio" style="min-height: 80px;">Macroeconomic research strategist tracking BNM OPR monetary policy, headline CPI inflation, GDP expansion trends, sovereign yield curves, and Bursa Malaysia blue-chip equities.</textarea>
                 </div>
+
+                <div class="settings-actions-footer">
+                  <button class="btn btn-secondary" id="discardSettingsBtn">Discard</button>
+                  <button class="btn btn-primary" id="saveSettingsBtn">Save Profile Changes</button>
+                </div>
+              </div>
+            </div>
+          </div>
+
+          <!-- TAB 2: WORKSPACE & WATCHLIST DEFAULTS (Enhancement 5) -->
+          <div class="settings-tab-pane" id="settingsTabWorkspace">
+            <div class="settings-grid-equal">
+              <!-- Card 1: Default Startup & Navigation Standards -->
+              <div class="card">
+                <div class="card-header">
+                  <div>
+                    <h3 class="card-title"><i data-lucide="layout-dashboard" style="width: 18px; height: 18px; color: var(--primary-light);"></i> Startup &amp; Navigation Defaults</h3>
+                    <p class="card-subtitle">Set your initial dashboard workspace and sovereign benchmark indexes</p>
+                  </div>
+                </div>
+                <div class="card-body">
+                  <div class="form-group">
+                    <label class="form-label">Default Landing View</label>
+                    <select class="form-select" id="workspaceDefaultView">
+                      <option value="overview" selected>Macro &amp; Equities Overview (BNM, CPI, GDP)</option>
+                      <option value="trading">Stock Analysis &amp; Bursa Malaysia Candlesticks</option>
+                      <option value="analytics">Global FX &amp; Sovereign Yield Curve Modeling</option>
+                      <option value="models">AI Quantitative Models &amp; Forecast Telemetry</option>
+                      <option value="logs">Federal Reserve FRED Database &amp; Speedometer</option>
+                    </select>
+                    <p style="font-size: 0.72rem; color: var(--text-muted); margin-top: 4px;">Initial screen displayed when launching the terminal.</p>
+                  </div>
+
+                  <div class="form-group">
+                    <label class="form-label">Primary Benchmark Equity Index</label>
+                    <select class="form-select" id="workspaceBenchmark">
+                      <option value="FBMKLCI" selected>FTSE Bursa Malaysia KLCI (FBM KLCI)</option>
+                      <option value="SP500">S&amp;P 500 Index (.SPX)</option>
+                      <option value="DJI">Dow Jones Industrial Average (.DJI)</option>
+                      <option value="ASEAN40">FTSE ASEAN 40 Blue-Chip Index</option>
+                    </select>
+                  </div>
+
+                  <div class="form-group">
+                    <label class="form-label">Default Chart Horizon / Lookback</label>
+                    <select class="form-select" id="workspaceChartPeriod">
+                      <option value="1M">1 Month (Short-Term Tactical)</option>
+                      <option value="3M" selected>3 Months (Quarterly Macro Cycle)</option>
+                      <option value="1Y">1 Year (Annual Baseline)</option>
+                      <option value="5Y">5 Years (Structural Sovereign Trend)</option>
+                    </select>
+                  </div>
+                </div>
+              </div>
+
+              <!-- Card 2: Market Quotation Standards -->
+              <div class="card">
+                <div class="card-header">
+                  <div>
+                    <h3 class="card-title"><i data-lucide="coins" style="width: 18px; height: 18px; color: var(--accent-cyan);"></i> Quotation &amp; Telemetry Standards</h3>
+                    <p class="card-subtitle">Configure base reporting currencies and live streaming polling frequency</p>
+                  </div>
+                </div>
+                <div class="card-body">
+                  <div class="form-group">
+                    <label class="form-label">Primary Equities Focus Sector</label>
+                    <select class="form-select" id="workspaceSectorFocus">
+                      <option value="all" selected>All Blue-Chip Sectors (Aggregated)</option>
+                      <option value="banking">Financial Services &amp; Banking (Maybank, CIMB, PBBANK)</option>
+                      <option value="tech">Technology &amp; AI Semiconductors (Inari, MPI, Frontken)</option>
+                      <option value="utilities">Utilities &amp; Renewable Energy (Tenaga, YTL Power)</option>
+                      <option value="consumer">Consumer Staples &amp; Discretionary</option>
+                    </select>
+                  </div>
+
+                  <div class="form-group">
+                    <label class="form-label">Reporting Base Currency</label>
+                    <select class="form-select" id="workspaceCurrency">
+                      <option value="MYR" selected>Malaysian Ringgit (MYR - RM)</option>
+                      <option value="USD">United States Dollar (USD - $)</option>
+                      <option value="EUR">Euro (EUR - €)</option>
+                      <option value="SGD">Singapore Dollar (SGD - S$)</option>
+                    </select>
+                  </div>
+
+                  <div class="form-group">
+                    <label class="form-label">Market Data Polling Rate</label>
+                    <select class="form-select" id="workspaceRefreshRate">
+                      <option value="15" selected>Ultra-Fast Polling (15s Real-Time Feeds)</option>
+                      <option value="30">Balanced Polling (30s Frequency)</option>
+                      <option value="60">Conservative / Bandwidth Saver (60s)</option>
+                    </select>
+                  </div>
+
+                  <div class="toggle-row" style="margin-top: 14px;">
+                    <div class="toggle-info">
+                      <span class="toggle-title">Terminal Audio Notifications</span>
+                      <span class="toggle-desc">Chime on central bank rate moves &amp; market triggers</span>
+                    </div>
+                    <label class="switch">
+                      <input type="checkbox" id="workspaceAudioChime" checked />
+                      <span class="slider"></span>
+                    </label>
+                  </div>
+                </div>
               </div>
             </div>
 
-            <!-- Platform Settings & Alert Rules Card -->
+            <div class="settings-actions-footer">
+              <button class="btn btn-secondary" id="discardWorkspaceBtn">Discard</button>
+              <button class="btn btn-primary" id="saveWorkspaceBtn">Save Workspace Defaults</button>
+            </div>
+          </div>
+
+          <!-- TAB 3: ALERTS & BULLETINS -->
+          <div class="settings-tab-pane" id="settingsTabNotifications">
             <div class="card">
               <div class="card-header">
                 <div>
-                  <h3 class="card-title"><i data-lucide="sliders" style="width: 18px; height: 18px; color: var(--accent-cyan);"></i> Notification Rules &amp; Platform Settings</h3>
-                  <p class="card-subtitle">Control real-time macroeconomic bulletins, price triggers, and secure API keys</p>
+                  <h3 class="card-title"><i data-lucide="bell-ring" style="width: 18px; height: 18px; color: var(--accent-cyan);"></i> Notification Rules &amp; Platform Alerts</h3>
+                  <p class="card-subtitle">Control real-time macroeconomic bulletins, price movement triggers, and notification delivery</p>
                 </div>
               </div>
               <div class="card-body">
@@ -1687,7 +1836,7 @@
                       <span class="toggle-desc">Instant alert on BNM MPC &amp; Federal Reserve policy rate decisions</span>
                     </div>
                     <label class="switch">
-                      <input type="checkbox" checked />
+                      <input type="checkbox" id="notifyOpr" checked />
                       <span class="slider"></span>
                     </label>
                   </div>
@@ -1698,7 +1847,7 @@
                       <span class="toggle-desc">Notify immediately upon DOSM quarterly GDP and monthly inflation data</span>
                     </div>
                     <label class="switch">
-                      <input type="checkbox" checked />
+                      <input type="checkbox" id="notifyCpi" checked />
                       <span class="slider"></span>
                     </label>
                   </div>
@@ -1709,7 +1858,7 @@
                       <span class="toggle-desc">Notify when watchlist equities (e.g. Maybank, Tenaga, WDC) move &gt; 2.0%</span>
                     </div>
                     <label class="switch">
-                      <input type="checkbox" checked />
+                      <input type="checkbox" id="notifyStocks" checked />
                       <span class="slider"></span>
                     </label>
                   </div>
@@ -1720,46 +1869,145 @@
                       <span class="toggle-desc">Daily bulletin of net foreign equity purchases on Bursa Malaysia</span>
                     </div>
                     <label class="switch">
-                      <input type="checkbox" checked />
+                      <input type="checkbox" id="notifyInflow" checked />
                       <span class="slider"></span>
                     </label>
                   </div>
                 </div>
 
-                <!-- API Key & Security Section -->
-                <div style="margin-top: 24px; padding-top: 18px; border-top: 1px solid var(--border-subtle);">
-                  <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 7px;">
-                    <label class="form-label" style="margin: 0;">Macro Data Feed API Secret</label>
-                    <span class="status-badge success" style="font-size: 0.68rem; padding: 2px 6px;">Active Key</span>
-                  </div>
-                  <div style="display: flex; gap: 8px;">
-                    <input type="password" class="form-input" value="mp_live_9f83ea019bc248109ad56" readonly id="apiKeyInput" style="font-family: monospace; letter-spacing: 0.05em;" />
-                    <button class="btn btn-secondary" id="toggleApiKeyBtn" title="Show / Hide API Key" style="padding: 0 12px;">
-                      <i data-lucide="eye" id="toggleApiKeyIcon" style="width: 16px; height: 16px;"></i>
-                    </button>
-                    <button class="btn btn-secondary" id="copyApiKeyBtn" title="Copy API Key" style="padding: 0 12px;">
-                      <i data-lucide="copy" style="width: 16px; height: 16px;"></i>
-                    </button>
-                  </div>
-                </div>
-
-                <!-- Account Security Status -->
-                <div style="margin-top: 18px; padding: 12px 14px; background: rgba(255, 255, 255, 0.02); border: 1px solid var(--border-subtle); border-radius: var(--radius-md); display: flex; align-items: center; justify-content: space-between;">
-                  <div style="display: flex; align-items: center; gap: 10px;">
-                    <i data-lucide="shield-check" style="width: 18px; height: 18px; color: var(--accent-green);"></i>
-                    <div>
-                      <div style="font-size: 0.82rem; font-weight: 600; color: #fff;">Two-Factor Authentication (2FA)</div>
-                      <div style="font-size: 0.72rem; color: var(--text-muted);">Secured via Hardware Key &amp; Authenticator App</div>
-                    </div>
-                  </div>
-                  <span class="status-badge success" style="font-size: 0.7rem;">Enabled</span>
-                </div>
-
-                <div style="margin-top: 28px; display: flex; justify-content: flex-end; gap: 12px;">
-                  <button class="btn btn-secondary" id="discardSettingsBtn">Discard</button>
-                  <button class="btn btn-primary" id="saveSettingsBtn">Save Changes</button>
+                <div class="settings-actions-footer">
+                  <button class="btn btn-secondary" id="discardNotificationsBtn">Discard</button>
+                  <button class="btn btn-primary" id="saveNotificationsBtn">Save Notification Rules</button>
                 </div>
               </div>
+            </div>
+          </div>
+
+          <!-- TAB 4: SECURITY & PASSWORD (Enhancement 4) -->
+          <div class="settings-tab-pane" id="settingsTabSecurity">
+            <div class="settings-grid-equal">
+              <!-- Card 1: Password & Authentication -->
+              <div class="card">
+                <div class="card-header">
+                  <div>
+                    <h3 class="card-title"><i data-lucide="key-round" style="width: 18px; height: 18px; color: #f59e0b;"></i> Update Account Password</h3>
+                    <p class="card-subtitle">Change your terminal login credentials and review password strength</p>
+                  </div>
+                </div>
+                <div class="card-body">
+                  <form id="updatePasswordForm" onsubmit="event.preventDefault();">
+                    <div class="form-group">
+                      <label class="form-label">Current Password</label>
+                      <div style="position: relative;">
+                        <input type="password" class="form-input" id="passwordCurrent" placeholder="Enter current password" style="padding-right: 42px;" />
+                        <button type="button" class="btn-icon" id="toggleCurrentPassBtn" style="position: absolute; right: 8px; top: 50%; transform: translateY(-50%); width: 28px; height: 28px; background: transparent; border: none; cursor: pointer;">
+                          <i data-lucide="eye" style="width: 15px; height: 15px; color: var(--text-muted);"></i>
+                        </button>
+                      </div>
+                    </div>
+
+                    <div class="form-group">
+                      <label class="form-label">New Password</label>
+                      <div style="position: relative;">
+                        <input type="password" class="form-input" id="passwordNew" placeholder="Enter new strong password" style="padding-right: 42px;" />
+                        <button type="button" class="btn-icon" id="toggleNewPassBtn" style="position: absolute; right: 8px; top: 50%; transform: translateY(-50%); width: 28px; height: 28px; background: transparent; border: none; cursor: pointer;">
+                          <i data-lucide="eye" style="width: 15px; height: 15px; color: var(--text-muted);"></i>
+                        </button>
+                      </div>
+                      <!-- Password Strength Meter -->
+                      <div class="password-strength-wrap">
+                        <div class="password-strength-bars">
+                          <div class="strength-bar" id="strengthBar1"></div>
+                          <div class="strength-bar" id="strengthBar2"></div>
+                          <div class="strength-bar" id="strengthBar3"></div>
+                        </div>
+                        <span class="strength-text" id="strengthText">Enter at least 8 characters with letters and numbers</span>
+                      </div>
+                    </div>
+
+                    <div class="form-group">
+                      <label class="form-label">Confirm New Password</label>
+                      <div style="position: relative;">
+                        <input type="password" class="form-input" id="passwordConfirm" placeholder="Re-type new password" style="padding-right: 42px;" />
+                        <button type="button" class="btn-icon" id="toggleConfirmPassBtn" style="position: absolute; right: 8px; top: 50%; transform: translateY(-50%); width: 28px; height: 28px; background: transparent; border: none; cursor: pointer;">
+                          <i data-lucide="eye" style="width: 15px; height: 15px; color: var(--text-muted);"></i>
+                        </button>
+                      </div>
+                    </div>
+
+                    <div style="margin-top: 20px;">
+                      <button type="button" class="btn btn-primary" id="updatePasswordBtn" style="width: 100%; justify-content: center; gap: 8px;">
+                        <i data-lucide="check-circle" style="width: 16px; height: 16px;"></i>
+                        <span>Update Password</span>
+                      </button>
+                    </div>
+                  </form>
+                </div>
+              </div>
+
+              <!-- Card 2: Institutional API & Sessions -->
+              <div class="card">
+                <div class="card-header">
+                  <div>
+                    <h3 class="card-title"><i data-lucide="shield-check" style="width: 18px; height: 18px; color: var(--accent-green);"></i> Security, API &amp; Sessions</h3>
+                    <p class="card-subtitle">Manage proprietary data feed API secrets and active sessions</p>
+                  </div>
+                </div>
+                <div class="card-body">
+                  <!-- API Key Secret -->
+                  <div style="margin-bottom: 20px;">
+                    <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 7px;">
+                      <label class="form-label" style="margin: 0;">Macro Data Feed API Secret</label>
+                      <span class="status-badge success" style="font-size: 0.68rem; padding: 2px 6px;">Active Key</span>
+                    </div>
+                    <div style="display: flex; gap: 8px;">
+                      <input type="password" class="form-input" value="mp_live_9f83ea019bc248109ad56" readonly id="apiKeyInput" style="font-family: monospace; letter-spacing: 0.05em;" />
+                      <button class="btn btn-secondary" id="toggleApiKeyBtn" title="Show / Hide API Key" style="padding: 0 12px;">
+                        <i data-lucide="eye" id="toggleApiKeyIcon" style="width: 16px; height: 16px;"></i>
+                      </button>
+                      <button class="btn btn-secondary" id="copyApiKeyBtn" title="Copy API Key" style="padding: 0 12px;">
+                        <i data-lucide="copy" style="width: 16px; height: 16px;"></i>
+                      </button>
+                      <button class="btn btn-secondary" id="regenerateApiKeyBtn" title="Regenerate Secret Key" style="padding: 0 12px; color: var(--accent-cyan);">
+                        <i data-lucide="refresh-cw" style="width: 16px; height: 16px;"></i>
+                      </button>
+                    </div>
+                  </div>
+
+                  <!-- Two-Factor Authentication (2FA) -->
+                  <div style="padding: 12px 14px; background: rgba(255, 255, 255, 0.02); border: 1px solid var(--border-subtle); border-radius: var(--radius-md); display: flex; align-items: center; justify-content: space-between; margin-bottom: 18px;">
+                    <div style="display: flex; align-items: center; gap: 10px;">
+                      <i data-lucide="shield-check" style="width: 18px; height: 18px; color: var(--accent-green);"></i>
+                      <div>
+                        <div style="font-size: 0.82rem; font-weight: 600; color: #fff;">Two-Factor Authentication (2FA)</div>
+                        <div style="font-size: 0.72rem; color: var(--text-muted);">Secured via FIDO2 Hardware Key &amp; Authenticator</div>
+                      </div>
+                    </div>
+                    <span class="status-badge success" style="font-size: 0.7rem;">Enabled</span>
+                  </div>
+
+                  <!-- Active Sessions Log -->
+                  <div style="padding: 12px 14px; background: rgba(255, 255, 255, 0.02); border: 1px solid var(--border-subtle); border-radius: var(--radius-md);">
+                    <div style="font-size: 0.8rem; font-weight: 600; color: #fff; margin-bottom: 8px; display: flex; align-items: center; gap: 6px;">
+                      <i data-lucide="laptop" style="width: 15px; height: 15px; color: var(--primary-light);"></i>
+                      <span>Active Workstation Session</span>
+                    </div>
+                    <div style="font-size: 0.74rem; color: var(--text-muted); line-height: 1.5;">
+                      <div>• <strong>Current Workstation</strong>: Microsoft Edge / Chrome on Windows 11</div>
+                      <div>• <strong>Location</strong>: Kuala Lumpur, Malaysia (IP: 175.143.218.42)</div>
+                      <div style="color: var(--accent-green); margin-top: 4px; display: flex; align-items: center; gap: 4px;">
+                        <span class="status-dot" style="width: 6px; height: 6px;"></span>
+                        <span>Session Authenticated &amp; Encrypted</span>
+                      </div>
+                    </div>
+                  </div>
+                </div>
+              </div>
+            </div>
+
+            <div class="settings-actions-footer">
+              <button class="btn btn-secondary" id="discardSecurityBtn">Discard</button>
+              <button class="btn btn-primary" id="saveSecurityBtn">Save Security Preferences</button>
             </div>
           </div>
 
@@ -1812,25 +2060,18 @@
             <h2 class="auth-heading">Sign In to Terminal 👋</h2>
             <p class="auth-subheading">Access institutional macroeconomic indicators & equity analytics.</p>
 
-            <!-- Quick Demo Access Helper -->
-            <div style="background: rgba(124, 58, 237, 0.12); border: 1px solid rgba(124, 58, 237, 0.28); border-radius: 8px; padding: 10px 12px; margin-bottom: 16px; font-size: 0.78rem; color: #cbd5e1; line-height: 1.45;">
-              <div style="color: #c084fc; font-weight: 600; display: flex; align-items: center; gap: 6px; margin-bottom: 3px;">
-                <i data-lucide="sparkles" style="width: 14px; height: 14px;"></i>
-                <span>Instant 1-Click Access (No Registration Needed)</span>
-              </div>
-              <span>Credentials are pre-filled below! Simply click <b>"Sign In to Terminal"</b> or <b>"Sign in with Google"</b>.</span>
-            </div>
+            <div id="signInAlert" class="auth-alert-banner" style="display: none;"></div>
 
-            <form class="auth-form" id="signInForm" onsubmit="event.preventDefault();">
+            <form class="auth-form" id="signInForm" novalidate onsubmit="event.preventDefault();">
               <div class="form-group">
                 <label class="form-label">Email Address</label>
-                <input type="email" class="form-input" id="signInEmail" placeholder="analyst@institution.com" required value="alex.morgan@macropulse.ai" />
+                <input type="email" class="form-input" id="signInEmail" placeholder="analyst@institution.com" required autocomplete="email" />
               </div>
 
               <div class="form-group">
                 <label class="form-label">Password</label>
                 <div class="password-input-wrap">
-                  <input type="password" class="form-input" id="signInPassword" placeholder="••••••••••••" required value="SecurePass123!" />
+                  <input type="password" class="form-input" id="signInPassword" placeholder="••••••••••••" required autocomplete="current-password" />
                   <button type="button" class="password-toggle-btn" id="togglePasswordBtn" aria-label="Toggle password visibility">
                     <i data-lucide="eye" style="width: 16px; height: 16px;"></i>
                   </button>
@@ -1842,7 +2083,7 @@
                   <input type="checkbox" checked />
                   <span>Remember for 30 days</span>
                 </label>
-                <a href="#" class="forgot-link" onclick="event.preventDefault(); alert('Reset instructions sent to your email.');">Forgot password?</a>
+                <a href="#forgot-password" class="forgot-link" id="forgotPasswordLink">Forgot password?</a>
               </div>
 
               <button type="submit" class="btn btn-primary" id="signInSubmitBtn" style="padding: 12px; margin-top: 4px;">Sign In to Terminal</button>
@@ -1850,7 +2091,9 @@
 
             <div class="auth-divider">or continue with</div>
 
-            <button type="button" class="btn-google" id="googleSsoBtn">
+            <div id="googleOfficialBtnSlot" style="display: none; justify-content: center; margin-bottom: 12px; width: 100%;"></div>
+
+            <button type="button" class="btn-google" id="googleSsoBtn" onclick="window.startGoogleSSOFlow ? window.startGoogleSSOFlow() : (document.getElementById('googleAccountModal').style.display='flex')">
               <svg width="18" height="18" viewBox="0 0 24 24">
                 <path fill="#4285F4" d="M22.56 12.25c0-.78-.07-1.53-.2-2.25H12v4.26h5.92c-.26 1.37-1.04 2.53-2.21 3.31v2.77h3.57c2.08-1.92 3.28-4.74 3.28-8.09z"/>
                 <path fill="#34A853" d="M12 23c2.97 0 5.46-.98 7.28-2.66l-3.57-2.77c-.98.66-2.23 1.06-3.71 1.06-2.86 0-5.29-1.93-6.16-4.53H2.18v2.84C3.99 20.53 7.7 23 12 23z"/>
@@ -1871,45 +2114,156 @@
             <h2 class="auth-heading">Create Account 👋</h2>
             <p class="auth-subheading">Track monetary policies, GDP trends, and stock watchlists.</p>
 
-            <form class="auth-form" id="signUpForm" onsubmit="event.preventDefault();">
+            <div id="signUpAlert" class="auth-alert-banner" style="display: none;"></div>
+
+            <form class="auth-form" id="signUpForm" onsubmit="event.preventDefault();" novalidate>
               <div class="form-group">
                 <label class="form-label">Full Name</label>
-                <input type="text" class="form-input" id="signUpName" placeholder="Enter your full name" required />
+                <input type="text" class="form-input" id="signUpName" placeholder="e.g. Alex Morgan" required />
+                <span class="form-error-hint" id="signUpNameError"></span>
               </div>
 
               <div class="form-group">
                 <label class="form-label">Email Address</label>
                 <input type="email" class="form-input" id="signUpEmail" placeholder="Enter your work email" required />
+                <span class="form-error-hint" id="signUpEmailError"></span>
               </div>
 
               <div class="form-group">
                 <label class="form-label">Select Your Role</label>
                 <select class="form-select" id="signUpRole">
-                  <option value="strategist">Macroeconomic Strategist</option>
-                  <option value="portfolio">Equities Portfolio Manager</option>
-                  <option value="treasury">Treasury & FX Analyst</option>
-                  <option value="investor">Quantitative / Retail Investor</option>
+                  <option value="Macroeconomic Strategist">Macroeconomic Strategist</option>
+                  <option value="Equities Portfolio Manager">Equities Portfolio Manager</option>
+                  <option value="Treasury & FX Analyst">Treasury & FX Analyst</option>
+                  <option value="Quantitative / Retail Investor">Quantitative / Retail Investor</option>
+                  <option value="Student">Student</option>
+                  <option value="Other">Other</option>
                 </select>
+                <div id="signUpRoleCustomWrap" style="display: none; margin-top: 8px;">
+                  <input type="text" class="form-input" id="signUpRoleCustom" placeholder="Specify your custom role / title..." />
+                </div>
               </div>
 
               <div class="form-group">
                 <label class="form-label">Password</label>
-                <input type="password" class="form-input" id="signUpPassword" placeholder="Create a strong password" required />
+                <div class="password-input-wrap">
+                  <input type="password" class="form-input" id="signUpPassword" placeholder="Min. 8 chars (letters & numbers)" required />
+                  <button type="button" class="password-toggle-btn" id="toggleSignUpPasswordBtn" aria-label="Toggle password visibility">
+                    <i data-lucide="eye" style="width: 16px; height: 16px;"></i>
+                  </button>
+                </div>
+                <span class="form-error-hint" id="signUpPasswordError"></span>
+              </div>
+
+              <div class="form-group">
+                <label class="form-label">Confirm Password</label>
+                <div class="password-input-wrap">
+                  <input type="password" class="form-input" id="signUpConfirmPassword" placeholder="Confirm your password" required />
+                  <button type="button" class="password-toggle-btn" id="toggleSignUpConfirmPasswordBtn" aria-label="Toggle confirm password visibility">
+                    <i data-lucide="eye" style="width: 16px; height: 16px;"></i>
+                  </button>
+                </div>
+                <span class="form-error-hint" id="signUpConfirmPasswordError"></span>
               </div>
 
               <div class="checkbox-row">
                 <label class="checkbox-label">
-                  <input type="checkbox" required checked />
+                  <input type="checkbox" id="signUpTerms" required checked />
                   <span>I agree to the Terms & Privacy Policy</span>
                 </label>
+                <span class="form-error-hint" id="signUpTermsError"></span>
               </div>
 
-              <button type="submit" class="btn btn-primary" id="signUpSubmitBtn" style="padding: 12px; margin-top: 4px;">Launch Macro Terminal</button>
+              <button type="submit" class="btn btn-primary" id="signUpSubmitBtn" style="padding: 12px; margin-top: 4px; display: inline-flex; align-items: center; justify-content: center; gap: 8px;">
+                <i data-lucide="user-plus" style="width: 16px; height: 16px;"></i>
+                <span>Sign Up</span>
+              </button>
             </form>
+
+            <div class="auth-divider">or continue with</div>
+
+            <div id="googleOfficialSignUpSlot" style="display: none; justify-content: center; margin-bottom: 12px; width: 100%;"></div>
+
+            <button type="button" class="btn-google" id="googleSignUpBtn" onclick="window.startGoogleSSOFlow ? window.startGoogleSSOFlow() : (document.getElementById('googleAccountModal').style.display='flex')">
+              <svg width="18" height="18" viewBox="0 0 24 24">
+                <path fill="#4285F4" d="M22.56 12.25c0-.78-.07-1.53-.2-2.25H12v4.26h5.92c-.26 1.37-1.04 2.53-2.21 3.31v2.77h3.57c2.08-1.92 3.28-4.74 3.28-8.09z"/>
+                <path fill="#34A853" d="M12 23c2.97 0 5.46-.98 7.28-2.66l-3.57-2.77c-.98.66-2.23 1.06-3.71 1.06-2.86 0-5.29-1.93-6.16-4.53H2.18v2.84C3.99 20.53 7.7 23 12 23z"/>
+                <path fill="#FBBC05" d="M5.84 14.09c-.22-.66-.35-1.36-.35-2.09s.13-1.43.35-2.09V7.06H2.18C1.43 8.55 1 10.22 1 12s.43 3.45 1.18 4.94l2.85-2.22.81-.63z"/>
+                <path fill="#EA4335" d="M12 5.38c1.62 0 3.06.56 4.21 1.64l3.15-3.15C17.45 2.09 14.97 1 12 1 7.7 1 3.99 3.47 2.18 7.06l3.66 2.84c.87-2.6 3.3-4.52 6.16-4.52z"/>
+              </svg>
+              <span>Sign up with Google</span>
+            </button>
 
             <div class="auth-toggle-footer">
               <span>Already have an account?</span>
               <button type="button" class="auth-toggle-btn" id="switchToSignInBtn">Sign in</button>
+            </div>
+          </div>
+
+          <!-- Mode 3: Forgot Password -->
+          <div id="authForgotPasswordContainer" style="display: none;">
+            <div style="display: flex; align-items: center; gap: 8px; margin-bottom: 8px;">
+              <button type="button" id="forgotBackIconBtn" style="background: rgba(255,255,255,0.06); border: 1px solid var(--border-color); border-radius: 8px; padding: 6px 8px; color: var(--text-muted); cursor: pointer; display: inline-flex; align-items: center; justify-content: center;" title="Back to Sign In">
+                <i data-lucide="arrow-left" style="width: 16px; height: 16px;"></i>
+              </button>
+              <h2 class="auth-heading" style="margin-bottom: 0;">Reset Password 🔑</h2>
+            </div>
+            <p class="auth-subheading">Enter your institutional email to receive a secure password reset link and verification code.</p>
+
+            <div id="forgotAlert" class="auth-alert-banner" style="display: none; margin-bottom: 14px;"></div>
+
+            <!-- Step 1: Request Code Form -->
+            <form class="auth-form" id="forgotPasswordForm" onsubmit="event.preventDefault();" novalidate>
+              <div class="form-group">
+                <label class="form-label">Registered Work Email</label>
+                <div style="position: relative;">
+                  <input type="email" class="form-input" id="forgotEmail" placeholder="analyst@institution.com" required style="padding-left: 38px;" />
+                  <i data-lucide="mail" style="position: absolute; left: 12px; top: 50%; transform: translateY(-50%); width: 16px; height: 16px; color: var(--text-muted);"></i>
+                </div>
+                <span class="form-error-hint" id="forgotEmailError"></span>
+              </div>
+
+              <button type="submit" class="btn btn-primary" id="forgotSubmitBtn" style="padding: 12px; margin-top: 6px; width: 100%;">Send Verification Code</button>
+            </form>
+
+            <!-- Step 2: Verification Code & New Password Form -->
+            <form class="auth-form" id="resetPasswordStep2Form" style="display: none;" onsubmit="event.preventDefault();" novalidate>
+              <div id="resetNoticeBanner" style="background: rgba(16, 185, 129, 0.12); border: 1px solid rgba(16, 185, 129, 0.3); border-radius: 8px; padding: 10px 12px; margin-bottom: 14px; font-size: 0.78rem; color: #a7f3d0; display: flex; align-items: flex-start; gap: 8px;">
+                <i data-lucide="check-circle-2" style="width: 16px; height: 16px; color: #34d399; flex-shrink: 0; margin-top: 2px;"></i>
+                <div id="resetNoticeText">
+                  <b>Security code sent!</b> Check your inbox or enter verification code <code style="background: rgba(0,0,0,0.35); padding: 1px 5px; border-radius: 4px; color: #fff; font-weight: 600;">849201</code>.
+                </div>
+              </div>
+
+              <div id="resetStep2Alert" class="auth-alert-banner" style="display: none; margin-bottom: 14px;"></div>
+
+              <div class="form-group">
+                <label class="form-label">6-Digit Verification Code</label>
+                <input type="text" class="form-input" id="resetSecurityCode" placeholder="Enter 6-digit code" maxlength="6" style="letter-spacing: 4px; font-weight: 600; text-align: center; font-size: 1.1rem;" required value="" />
+                <span class="form-error-hint" id="resetSecurityCodeError"></span>
+              </div>
+
+              <div class="form-group">
+                <label class="form-label">New Password</label>
+                <div class="password-input-wrap">
+                  <input type="password" class="form-input" id="resetNewPassword" placeholder="Create new strong password" required />
+                  <button type="button" class="password-toggle-btn" id="toggleResetPasswordBtn" aria-label="Toggle password visibility">
+                    <i data-lucide="eye" style="width: 16px; height: 16px;"></i>
+                  </button>
+                </div>
+              </div>
+
+              <div class="form-group">
+                <label class="form-label">Confirm New Password</label>
+                <input type="password" class="form-input" id="resetConfirmPassword" placeholder="Confirm new password" required />
+              </div>
+
+              <button type="submit" class="btn btn-primary" id="resetPasswordSubmitBtn" style="padding: 12px; margin-top: 6px; width: 100%;">Set New Password & Sign In</button>
+            </form>
+
+            <div class="auth-toggle-footer">
+              <span>Remembered your password?</span>
+              <button type="button" class="auth-toggle-btn" id="backToSignInFromForgotBtn">Sign in</button>
             </div>
           </div>
 
@@ -1974,6 +2328,125 @@
           <i data-lucide="log-out" style="width: 15px; height: 15px;"></i>
           <span>Confirm Log Out</span>
         </button>
+      </div>
+    </div>
+  </div>
+
+
+  <!-- ==================== GOOGLE ACCOUNT CHOOSER MODAL ==================== -->
+  <div class="auth-modal-backdrop" id="googleAccountModal" style="display: none;">
+    <div class="google-modal-card">
+      <button class="google-close-btn" id="closeGoogleModalBtn" type="button" title="Close" aria-label="Close dialog">
+        <i data-lucide="x" style="width: 18px; height: 18px;"></i>
+      </button>
+
+      <div class="google-modal-header">
+        <div class="google-brand-header">
+          <!-- Google 4-Color SVG Logo -->
+          <svg width="40" height="40" viewBox="0 0 24 24" style="flex-shrink: 0;">
+            <path fill="#4285F4" d="M22.56 12.25c0-.78-.07-1.53-.2-2.25H12v4.26h5.92c-.26 1.37-1.04 2.53-2.21 3.31v2.77h3.57c2.08-1.92 3.28-4.74 3.28-8.09z"/>
+            <path fill="#34A853" d="M12 23c2.97 0 5.46-.98 7.28-2.66l-3.57-2.77c-.98.66-2.23 1.06-3.71 1.06-2.86 0-5.29-1.93-6.16-4.53H2.18v2.84C3.99 20.53 7.7 23 12 23z"/>
+            <path fill="#FBBC05" d="M5.84 14.09c-.22-.66-.35-1.36-.35-2.09s.13-1.43.35-2.09V7.06H2.18C1.43 8.55 1 10.22 1 12s.43 3.45 1.18 4.94l2.85-2.22.81-.63z"/>
+            <path fill="#EA4335" d="M12 5.38c1.62 0 3.06.56 4.21 1.64l3.15-3.15C17.45 2.09 14.97 1 12 1 7.7 1 3.99 3.47 2.18 7.06l3.66 2.84c.87-2.6 3.3-4.52 6.16-4.52z"/>
+          </svg>
+          <h2 class="google-modal-title">Sign in with Google</h2>
+          <p class="google-modal-subtitle">Choose an account to continue to <b>MacroPulse Terminal</b></p>
+        </div>
+      </div>
+
+      <div class="google-modal-body">
+        <!-- List View of Google Accounts -->
+        <div class="google-accounts-list" id="googleAccountsList">
+          <!-- Account 1: Mikasa Ackerman -->
+          <div class="google-account-item" data-email="reynaxmikasa23@gmail.com" data-name="Mikasa Ackerman">
+            <div class="google-avatar-badge" style="background: linear-gradient(135deg, #d946ef, #8b5cf6);">
+              <span>M</span>
+            </div>
+            <div class="google-account-info">
+              <div class="google-account-name">Mikasa Ackerman</div>
+              <div class="google-account-email">reynaxmikasa23@gmail.com</div>
+              <div class="google-account-tag">Registered Account • MySQL Synchronized</div>
+            </div>
+            <i data-lucide="chevron-right" class="google-item-arrow"></i>
+          </div>
+
+          <!-- Account 2: Alex Morgan -->
+          <div class="google-account-item" data-email="alex.morgan@macropulse.ai" data-name="Alex Morgan">
+            <div class="google-avatar-badge" style="background: linear-gradient(135deg, #2563eb, #06b6d4);">
+              <span>A</span>
+            </div>
+            <div class="google-account-info">
+              <div class="google-account-name">Alex Morgan</div>
+              <div class="google-account-email">alex.morgan@macropulse.ai</div>
+              <div class="google-account-tag">Chief Macro Strategist • MySQL Synchronized</div>
+            </div>
+            <i data-lucide="chevron-right" class="google-item-arrow"></i>
+          </div>
+
+          <!-- Account 3: Use Another Account Option -->
+          <div class="google-account-item google-use-another" id="googleUseAnotherToggle">
+            <div class="google-avatar-badge google-badge-plus">
+              <i data-lucide="user" style="width: 18px; height: 18px;"></i>
+            </div>
+            <div class="google-account-info">
+              <div class="google-account-name">Use another Google account</div>
+              <div class="google-account-email">Sign in or auto-register any Gmail address</div>
+            </div>
+            <i data-lucide="chevron-down" id="googleAnotherArrow" class="google-item-arrow"></i>
+          </div>
+        </div>
+
+        <!-- Single Google Email Entry Form (Google Accounts style) -->
+        <div class="google-custom-form" id="googleCustomForm" style="display: none;">
+          <div class="google-input-wrap">
+            <label class="google-input-label">Google Email or phone</label>
+            <input type="email" class="google-text-input" id="googleCustomEmail" placeholder="your.name@gmail.com" autocomplete="email" />
+            <span class="google-error-msg" id="googleCustomEmailError"></span>
+          </div>
+
+          <div class="google-input-wrap" style="margin-bottom: 8px;">
+            <label class="google-input-label">Display Name (Optional)</label>
+            <input type="text" class="google-text-input" id="googleCustomName" placeholder="e.g., Sarah Connor" />
+          </div>
+
+          <div class="google-form-actions">
+            <button type="button" class="google-btn-text" id="cancelGoogleCustomBtn">Back to accounts</button>
+            <button type="button" class="google-btn-primary" id="submitGoogleCustomBtn">
+              <span>Next</span>
+              <i data-lucide="arrow-right" style="width: 14px; height: 14px;"></i>
+            </button>
+          </div>
+        </div>
+      </div>
+
+      <!-- Google Modal Footer (Authentic Google Style) -->
+      <div class="google-modal-footer">
+        <div class="google-footer-links-row">
+          <span>English (United States)</span>
+          <div class="google-footer-links">
+            <a href="https://support.google.com/accounts" target="_blank" rel="noopener">Help</a>
+            <a href="https://policies.google.com/privacy" target="_blank" rel="noopener">Privacy</a>
+            <a href="https://policies.google.com/terms" target="_blank" rel="noopener">Terms</a>
+          </div>
+        </div>
+
+        <!-- Optional Live Google Cloud Client ID Configuration Toggle -->
+        <div class="google-oauth-config-toggle">
+          <button type="button" class="google-oauth-toggle-btn" id="googleOauthToggleBtn">
+            <i data-lucide="settings" style="width: 12px; height: 12px;"></i>
+            <span id="googleOauthToggleText">Connect official Google Cloud Client ID (Optional)</span>
+          </button>
+          <div id="googleOauthConfigBox" class="google-oauth-config-box" style="display: none;">
+            <p style="margin: 0 0 6px; color: #444746; line-height: 1.4;">
+              Paste your registered Google Cloud <b>OAuth 2.0 Client ID</b> for <code>http://localhost:3000</code> to launch Google's live <code>accounts.google.com</code> server popup:
+            </p>
+            <input type="text" id="googleLiveClientIdInput" placeholder="xxxx-xxxx.apps.googleusercontent.com" />
+            <div style="display: flex; gap: 8px; justify-content: flex-end; margin-top: 8px;">
+              <button type="button" id="saveGoogleClientIdBtn">Save &amp; Activate Live Google</button>
+            </div>
+            <span id="googleLiveConfigStatus" style="display: block; margin-top: 4px; font-size: 0.72rem; color: #0b57d0;"></span>
+          </div>
+        </div>
       </div>
     </div>
   </div>
@@ -2504,6 +2977,6 @@
   <div class="toast-container" id="toastContainer"></div>
 
   <!-- App Script -->
-  <script src="js/app.js?v=20260914-no-guest"></script>
+  <script src="js/app.js?v=20260921-ema-toggle-v24"></script>
 </body>
 </html>

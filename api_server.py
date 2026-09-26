@@ -12,10 +12,32 @@ import urllib.request
 import urllib.parse
 from http.server import ThreadingHTTPServer, SimpleHTTPRequestHandler
 from datetime import datetime, timedelta
+import threading
 import yfinance as yf
+
+try:
+    import database.db as db_module
+except Exception as _db_err:
+    db_module = None
+
+try:
+    import email_service
+except Exception as _em_err:
+    email_service = None
 
 PORT = 3000
 BASE_DIR = os.path.dirname(os.path.abspath(__file__))
+
+def load_google_auth_config():
+    cfg_file = os.path.join(BASE_DIR, "google_auth_config.json")
+    cfg = {"enabled": False, "client_id": ""}
+    if os.path.exists(cfg_file):
+        try:
+            with open(cfg_file, "r", encoding="utf-8") as f:
+                cfg.update(json.load(f))
+        except Exception:
+            pass
+    return cfg
 
 # In-memory cache for FRED and stock queries to ensure instant responses
 CACHE = {}
@@ -1045,17 +1067,198 @@ class MacroPulseRequestHandler(SimpleHTTPRequestHandler):
         super().__init__(*args, directory=BASE_DIR, **kwargs)
 
     def end_headers(self):
-        # Enable CORS and disable aggressive caching for API calls
-        if self.path.startswith("/api/"):
-            self.send_header("Access-Control-Allow-Origin", "*")
-            self.send_header("Access-Control-Allow-Methods", "GET, OPTIONS")
-            self.send_header("Access-Control-Allow-Headers", "Content-Type")
-            self.send_header("Cache-Control", "no-cache, no-store, must-revalidate")
+        # Disable aggressive browser caching for all JS, HTML, CSS, and API requests
+        self.send_header("Access-Control-Allow-Origin", "*")
+        self.send_header("Access-Control-Allow-Methods", "GET, POST, OPTIONS")
+        self.send_header("Access-Control-Allow-Headers", "Content-Type")
+        self.send_header("Cache-Control", "no-cache, no-store, must-revalidate, max-age=0")
+        self.send_header("Pragma", "no-cache")
+        self.send_header("Expires", "0")
         super().end_headers()
 
     def do_OPTIONS(self):
         self.send_response(200)
         self.end_headers()
+
+    def do_POST(self):
+        parsed = urllib.parse.urlparse(self.path)
+        path = parsed.path
+        content_length = int(self.headers.get("Content-Length", 0))
+        post_body = self.rfile.read(content_length).decode("utf-8") if content_length > 0 else "{}"
+        try:
+            body = json.loads(post_body)
+        except Exception:
+            try:
+                raw_dict = urllib.parse.parse_qs(post_body)
+                body = {k: v[0] if isinstance(v, list) and len(v) == 1 else v for k, v in raw_dict.items()}
+            except Exception:
+                body = {}
+
+        if path == "/api/user/profile":
+            email = body.get("email", "").strip()
+            new_email = body.get("new_email", email).strip()
+            name = body.get("name", "").strip()
+            role = body.get("role", "").strip()
+            desk = body.get("desk", "").strip()
+            timezone = body.get("timezone", "").strip()
+            bio = body.get("bio", "").strip()
+            avatar = body.get("avatar", None)
+            avatar_url = avatar.strip() if isinstance(avatar, str) and avatar.strip() else None
+
+            res = db_module.update_user_profile(
+                email=email,
+                full_name=name,
+                role_title=role,
+                department=desk,
+                timezone=timezone,
+                bio=bio,
+                avatar_url=avatar_url,
+                new_email=new_email
+            ) if db_module else {"success": True}
+
+            self.send_response(200 if res.get("success") else 400)
+            self.send_header("Content-Type", "application/json")
+            self.end_headers()
+            self.wfile.write(json.dumps(res).encode("utf-8"))
+            return
+
+        if path == "/api/user/workspace":
+            email = body.get("email", "").strip()
+            res = db_module.update_user_workspace_settings(
+                email=email,
+                default_landing_view=body.get("default_landing_view"),
+                benchmark_index=body.get("benchmark_index"),
+                lookback_horizon=body.get("lookback_horizon"),
+                focus_sector=body.get("focus_sector"),
+                reporting_currency=body.get("reporting_currency"),
+                polling_rate_seconds=body.get("polling_rate_seconds"),
+                audio_chimes_enabled=body.get("audio_chimes_enabled")
+            ) if db_module else {"success": True}
+
+            self.send_response(200 if res.get("success") else 400)
+            self.send_header("Content-Type", "application/json")
+            self.end_headers()
+            self.wfile.write(json.dumps(res).encode("utf-8"))
+            return
+
+        if path == "/api/auth/register":
+            name = body.get("name", "Analyst").strip()
+            email = body.get("email", "").strip()
+            password = body.get("password", "")
+            role = body.get("role", "Quantitative / Retail Investor").strip()
+            res = db_module.register_user(name, email, password, role) if db_module else {"success": True}
+
+            # Dispatch welcome confirmation email in background thread
+            if res.get("success") and email_service and email:
+                threading.Thread(
+                    target=email_service.send_welcome_email,
+                    args=(email, name, False),
+                    daemon=True
+                ).start()
+
+            self.send_response(200 if res.get("success") else 400)
+            self.send_header("Content-Type", "application/json")
+            self.end_headers()
+            self.wfile.write(json.dumps(res).encode("utf-8"))
+            return
+
+        if path == "/api/auth/login":
+            email = body.get("email", "").strip()
+            password = body.get("password", "")
+            user = db_module.authenticate_user(email, password) if db_module else None
+            self.send_response(200 if user else 401)
+            self.send_header("Content-Type", "application/json")
+            self.end_headers()
+            self.wfile.write(json.dumps({"success": bool(user), "user": user}).encode("utf-8"))
+            return
+
+        if path == "/api/auth/google":
+            credential = body.get("credential", "")
+            email = body.get("email", "").strip()
+            name = body.get("name", "").strip()
+            avatar = body.get("avatar", "").strip()
+
+            # If a Google JWT credential token is provided, extract profile claims
+            if credential and isinstance(credential, str) and "." in credential:
+                try:
+                    parts = credential.split(".")
+                    if len(parts) >= 2:
+                        import base64
+                        payload_b64 = parts[1]
+                        payload_b64 += "=" * ((4 - len(payload_b64) % 4) % 4)
+                        payload_json = base64.urlsafe_b64decode(payload_b64.encode("utf-8")).decode("utf-8")
+                        jwt_claims = json.loads(payload_json)
+                        if jwt_claims.get("email"):
+                            email = jwt_claims["email"].strip()
+                        if jwt_claims.get("name"):
+                            name = jwt_claims["name"].strip()
+                        if jwt_claims.get("picture"):
+                            avatar = jwt_claims["picture"].strip()
+                except Exception as e:
+                    print(f"[AUTH] Could not decode Google JWT credential: {e}")
+
+            if not email:
+                self.send_response(401)
+                self.send_header("Content-Type", "application/json")
+                self.end_headers()
+                self.wfile.write(json.dumps({
+                    "success": False,
+                    "error": "Unauthorized: Tampered or invalid OAuth credential token."
+                }).encode("utf-8"))
+                return
+
+            res = db_module.authenticate_or_register_google_user(email=email, full_name=name, avatar_url=avatar) if db_module else {
+                "success": True,
+                "user": {
+                    "id": 999,
+                    "email": email,
+                    "name": name or "Google User",
+                    "role": "Quantitative / Retail Investor",
+                    "desk": "MacroPulse Equities Division",
+                    "timezone": "UTC+8",
+                    "bio": "Authenticated via Google Single Sign-On.",
+                    "avatar": avatar or "https://images.unsplash.com/photo-1534528741775-53994a69daeb?w=160&auto=format&fit=crop&q=80",
+                    "apiKey": "mp_live_google_sso"
+                }
+            }
+
+            # Dispatch welcome confirmation email if this is a newly registered Google user
+            if res.get("success") and res.get("is_new") and email_service and email:
+                threading.Thread(
+                    target=email_service.send_welcome_email,
+                    args=(email, name or "Google User", True),
+                    daemon=True
+                ).start()
+
+            self.send_response(200 if res.get("success") else 400)
+            self.send_header("Content-Type", "application/json")
+            self.end_headers()
+            self.wfile.write(json.dumps(res).encode("utf-8"))
+            return
+
+        if path == "/api/auth/google-config":
+            client_id = body.get("client_id", "").strip()
+            enabled = bool(body.get("enabled", True if client_id else False))
+            cfg_file = os.path.join(BASE_DIR, "google_auth_config.json")
+            cfg = {"enabled": enabled, "client_id": client_id}
+            try:
+                with open(cfg_file, "w", encoding="utf-8") as f:
+                    json.dump(cfg, f, indent=2)
+                self.send_response(200)
+                self.send_header("Content-Type", "application/json")
+                self.end_headers()
+                self.wfile.write(json.dumps({"success": True, "config": cfg}).encode("utf-8"))
+            except Exception as e:
+                self.send_response(500)
+                self.send_header("Content-Type", "application/json")
+                self.end_headers()
+                self.wfile.write(json.dumps({"success": False, "error": str(e)}).encode("utf-8"))
+            return
+
+        self.send_response(404)
+        self.send_header("Content-Type", "application/json")
+        self.end_headers()
+        self.wfile.write(json.dumps({"error": "Endpoint not found"}).encode("utf-8"))
 
     def do_GET(self):
         parsed = urllib.parse.urlparse(self.path)
@@ -1106,16 +1309,6 @@ class MacroPulseRequestHandler(SimpleHTTPRequestHandler):
                                         seen_symbols.add(sym)
                     except Exception as e:
                         print(f"[Live Search Warning] {e}", file=sys.stderr)
-
-                # 3. Fallback direct ticker entry only if no matches found at all
-                if not matches and q_upper:
-                    matches.append({
-                        "symbol": q_upper,
-                        "name": f"Ticker '{q_upper}'",
-                        "exchange": "Global / US / KLSE",
-                        "country": "MY" if q_upper.endswith(".KL") else "GLOBAL",
-                        "sector": "Equities"
-                    })
             else:
                 matches = POPULAR_STOCKS[:15]
 
@@ -1181,6 +1374,233 @@ class MacroPulseRequestHandler(SimpleHTTPRequestHandler):
             return
 
         # -------------------------------------------------------------
+        # 4b. API: MySQL Database Telemetry & Connection Status
+        # -------------------------------------------------------------
+        if path == "/api/db/status":
+            status = db_module.check_connection() if db_module else {
+                "connected": False,
+                "error": "database.db module not loaded"
+            }
+            self.send_response(200)
+            self.send_header("Content-Type", "application/json")
+            self.end_headers()
+            self.wfile.write(json.dumps(status).encode("utf-8"))
+            return
+
+        # -------------------------------------------------------------
+        # 4c. API: Authentication & Password Reset Endpoints
+        # -------------------------------------------------------------
+        if path == "/api/auth/google-config":
+            cfg = load_google_auth_config()
+            self.send_response(200)
+            self.send_header("Content-Type", "application/json")
+            self.end_headers()
+            self.wfile.write(json.dumps({"success": True, "enabled": bool(cfg.get("enabled")), "clientId": cfg.get("client_id", "")}).encode("utf-8"))
+            return
+
+        if path == "/api/auth/google":
+            email = query.get("email", [""])[0].strip()
+            name = query.get("name", [""])[0].strip()
+            avatar = query.get("avatar", [""])[0].strip()
+            if not email:
+                self.send_response(400)
+                self.send_header("Content-Type", "application/json")
+                self.end_headers()
+                self.wfile.write(json.dumps({"success": False, "error": "Email is required."}).encode("utf-8"))
+                return
+            res = db_module.authenticate_or_register_google_user(email=email, full_name=name, avatar_url=avatar) if db_module else {
+                "success": True,
+                "user": {"id": 999, "email": email, "name": name or "Google User", "role": "Quantitative / Retail Investor", "avatar": avatar}
+            }
+
+            # Dispatch welcome confirmation email if this is a newly registered Google user
+            if res.get("success") and res.get("is_new") and email_service and email:
+                threading.Thread(
+                    target=email_service.send_welcome_email,
+                    args=(email, name or "Google User", True),
+                    daemon=True
+                ).start()
+
+            self.send_response(200 if res.get("success") else 400)
+            self.send_header("Content-Type", "application/json")
+            self.end_headers()
+            self.wfile.write(json.dumps(res).encode("utf-8"))
+            return
+
+        if path == "/api/auth/login":
+            email = query.get("email", ["alex.morgan@macropulse.ai"])[0].strip()
+            password = query.get("password", ["SecurePass123!"])[0]
+            user = db_module.authenticate_user(email, password) if db_module else None
+            self.send_response(200 if user else 401)
+            self.send_header("Content-Type", "application/json")
+            self.end_headers()
+            self.wfile.write(json.dumps({"success": bool(user), "user": user}).encode("utf-8"))
+            return
+
+        if path == "/api/auth/check-email":
+            email = query.get("email", [""])[0].strip()
+            exists = db_module.check_email_exists(email) if db_module else False
+            self.send_response(200)
+            self.send_header("Content-Type", "application/json")
+            self.end_headers()
+            self.wfile.write(json.dumps({
+                "exists": exists,
+                "email": email,
+                "message": "The email has already been registered." if exists else "Email available."
+            }).encode("utf-8"))
+            return
+
+        if path == "/api/auth/register":
+            name = query.get("name", ["Analyst"])[0].strip()
+            email = query.get("email", [""])[0].strip()
+            password = query.get("password", [""])[0]
+            role = query.get("role", ["Quantitative / Retail Investor"])[0].strip()
+            res = db_module.register_user(name, email, password, role) if db_module else {"success": True}
+
+            # Dispatch welcome confirmation email in background thread
+            if res.get("success") and email_service and email:
+                threading.Thread(
+                    target=email_service.send_welcome_email,
+                    args=(email, name, False),
+                    daemon=True
+                ).start()
+
+            self.send_response(200 if res.get("success") else 400)
+            self.send_header("Content-Type", "application/json")
+            self.end_headers()
+            self.wfile.write(json.dumps(res).encode("utf-8"))
+            return
+
+        if path == "/api/user/profile":
+            email = query.get("email", [""])[0].strip()
+            name = query.get("name", [""])[0].strip()
+            if email and not name and not query.get("role"):
+                # Fetch user profile
+                prof = db_module.get_user_profile(email) if db_module else None
+                self.send_response(200 if prof else 404)
+                self.send_header("Content-Type", "application/json")
+                self.end_headers()
+                self.wfile.write(json.dumps({"success": bool(prof), "user": prof}).encode("utf-8"))
+                return
+
+            new_email = query.get("new_email", [email])[0].strip()
+            role = query.get("role", [""])[0].strip()
+            desk = query.get("desk", [""])[0].strip()
+            timezone = query.get("timezone", [""])[0].strip()
+            bio = query.get("bio", [""])[0].strip()
+            avatar = query.get("avatar", [""])[0].strip()
+            avatar_url = avatar if avatar else None
+
+            res = db_module.update_user_profile(
+                email=email,
+                full_name=name,
+                role_title=role,
+                department=desk,
+                timezone=timezone,
+                bio=bio,
+                avatar_url=avatar_url,
+                new_email=new_email
+            ) if db_module else {"success": True}
+
+            self.send_response(200 if res.get("success") else 400)
+            self.send_header("Content-Type", "application/json")
+            self.end_headers()
+            self.wfile.write(json.dumps(res).encode("utf-8"))
+            return
+
+        if path == "/api/user/workspace":
+            email = query.get("email", [""])[0].strip()
+            # If request only queries email, return current workspace settings
+            has_update = any(k in query for k in ["default_landing_view", "benchmark_index", "lookback_horizon", "focus_sector", "reporting_currency", "polling_rate_seconds", "audio_chimes_enabled"])
+            if not has_update:
+                settings = db_module.get_user_workspace_settings(email) if db_module else None
+                self.send_response(200)
+                self.send_header("Content-Type", "application/json")
+                self.end_headers()
+                self.wfile.write(json.dumps({"success": True, "settings": settings}).encode("utf-8"))
+                return
+
+            audio_param = query.get("audio_chimes_enabled", [None])[0]
+            audio_val = None
+            if audio_param is not None:
+                audio_val = audio_param.lower() in ["1", "true", "yes"]
+
+            res = db_module.update_user_workspace_settings(
+                email=email,
+                default_landing_view=query.get("default_landing_view", [None])[0],
+                benchmark_index=query.get("benchmark_index", [None])[0],
+                lookback_horizon=query.get("lookback_horizon", [None])[0],
+                focus_sector=query.get("focus_sector", [None])[0],
+                reporting_currency=query.get("reporting_currency", [None])[0],
+                polling_rate_seconds=int(query.get("polling_rate_seconds", [15])[0]) if query.get("polling_rate_seconds") else None,
+                audio_chimes_enabled=audio_val
+            ) if db_module else {"success": True}
+
+            self.send_response(200 if res.get("success") else 400)
+            self.send_header("Content-Type", "application/json")
+            self.end_headers()
+            self.wfile.write(json.dumps(res).encode("utf-8"))
+            return
+
+        if path == "/api/auth/forgot":
+            email = query.get("email", [""])[0].strip()
+            if not email:
+                self.send_response(400)
+                self.send_header("Content-Type", "application/json")
+                self.end_headers()
+                self.wfile.write(json.dumps({"success": False, "error": "Email address is required."}).encode("utf-8"))
+                return
+
+            db_res = db_module.request_password_reset(email) if db_module else {"success": True, "code": "849201"}
+            if not db_res.get("success"):
+                err_msg = db_res.get("error", "No account found with this email address.")
+                self.send_response(404)
+                self.send_header("Content-Type", "application/json")
+                self.end_headers()
+                self.wfile.write(json.dumps({"success": False, "error": err_msg}).encode("utf-8"))
+                return
+
+            code = db_res.get("code", "849201")
+            email_res = email_service.send_password_reset_code(email, code, expires_in_minutes=10) if email_service else {"sent": False}
+            email_sent = email_res.get("sent", False)
+
+            response_data = {
+                "success": True,
+                "email": email,
+                "emailSent": email_sent,
+                "code": code if not email_sent else None,
+                "message": f"Verification code sent to {email}" if email_sent else f"Verification code ready for {email}",
+                "demoMode": not email_sent
+            }
+
+            self.send_response(200)
+            self.send_header("Content-Type", "application/json")
+            self.end_headers()
+            self.wfile.write(json.dumps(response_data).encode("utf-8"))
+            return
+
+        if path == "/api/auth/reset":
+            email = query.get("email", ["alex.morgan@macropulse.ai"])[0].strip()
+            code = query.get("code", ["849201"])[0].strip()
+            new_pw = query.get("password", [""])[0]
+            res = db_module.complete_password_reset(email, code, new_pw) if db_module else {"success": True}
+            self.send_response(200 if res.get("success") else 400)
+            self.send_header("Content-Type", "application/json")
+            self.end_headers()
+            self.wfile.write(json.dumps(res).encode("utf-8"))
+            return
+
+        if path == "/api/user/password":
+            email = query.get("email", ["alex.morgan@macropulse.ai"])[0].strip()
+            new_pw = query.get("password", [""])[0]
+            res = db_module.update_user_password(email, new_pw) if db_module else {"success": True}
+            self.send_response(200 if res.get("success") else 400)
+            self.send_header("Content-Type", "application/json")
+            self.end_headers()
+            self.wfile.write(json.dumps(res).encode("utf-8"))
+            return
+
+        # -------------------------------------------------------------
         # 5. API: Model Performance Logs & Evaluation Metrics (RMSE, MAE, MAPE)
         # -------------------------------------------------------------
         if path == "/api/models/performance":
@@ -1201,6 +1621,8 @@ class MacroPulseRequestHandler(SimpleHTTPRequestHandler):
             model_id = query.get("model", ["lstm"])[0].lower()
             target_id = query.get("target", ["1155.KL"])[0].upper()
             result = retrain_model(model_id, target_id)
+            if db_module:
+                db_module.record_model_run_log(model_id, target_id, "retrain", result.get("metrics", {}))
 
             self.send_response(200)
             self.send_header("Content-Type", "application/json")
@@ -1215,6 +1637,8 @@ class MacroPulseRequestHandler(SimpleHTTPRequestHandler):
             model_id = query.get("model", ["lstm"])[0].lower()
             target_id = query.get("target", ["1155.KL"])[0].upper()
             result = backtest_model(model_id, target_id)
+            if db_module:
+                db_module.record_model_run_log(model_id, target_id, "backtest", result.get("metrics", {}))
 
             self.send_response(200)
             self.send_header("Content-Type", "application/json")

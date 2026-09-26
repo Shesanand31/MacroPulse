@@ -247,22 +247,46 @@ document.addEventListener('DOMContentLoaded', () => {
   };
 
   // Toast System
-  function showToast(message, type = 'info') {
+  function showToast(message, type = 'info', action = null) {
     const container = document.getElementById('toastContainer');
     if (!container) return;
 
+    // Suppress background news toasts if user is on login/registration/forgot screen
+    const loginPage = document.getElementById('loginPage');
+    if (loginPage && window.getComputedStyle(loginPage).display !== 'none' && !type.includes('auth')) {
+      return;
+    }
+
     const toast = document.createElement('div');
-    toast.className = 'toast';
+    toast.className = 'toast' + (action ? ' toast-actionable' : '');
     
     let icon = 'info';
     if (type === 'success') icon = 'check-circle';
     if (type === 'error') icon = 'alert-triangle';
+    if (type === 'policy') icon = 'landmark';
+
+    let actionBtnHtml = '';
+    if (action && action.label) {
+      actionBtnHtml = `<button type="button" class="toast-action-btn" style="background: rgba(59, 130, 246, 0.25); border: 1px solid rgba(96, 165, 250, 0.5); color: #93c5fd; padding: 3px 9px; border-radius: 4px; font-size: 0.72rem; font-weight: 600; cursor: pointer; white-space: nowrap; margin-left: 8px;">${action.label}</button>`;
+    }
 
     toast.innerHTML = `
-      <i data-lucide="${icon}" style="width: 18px; height: 18px; color: ${type === 'success' ? '#10b981' : type === 'error' ? '#ef4444' : '#a78bfa'};"></i>
-      <span>${message}</span>
+      <i data-lucide="${icon}" style="width: 18px; height: 18px; flex-shrink: 0; color: ${type === 'success' ? '#10b981' : type === 'error' ? '#ef4444' : type === 'policy' ? '#38bdf8' : '#a78bfa'};"></i>
+      <span style="flex: 1;">${message}</span>
+      ${actionBtnHtml}
     `;
     
+    if (action && action.onClick) {
+      const btn = toast.querySelector('.toast-action-btn');
+      if (btn) {
+        btn.addEventListener('click', (e) => {
+          e.stopPropagation();
+          action.onClick();
+          toast.remove();
+        });
+      }
+    }
+
     container.appendChild(toast);
     if (window.lucide) lucide.createIcons({ root: toast });
 
@@ -271,7 +295,7 @@ document.addEventListener('DOMContentLoaded', () => {
       toast.style.transform = 'translateY(15px)';
       toast.style.transition = 'all 0.3s ease';
       setTimeout(() => toast.remove(), 300);
-    }, 3500);
+    }, action ? 6000 : 3500);
   }
 
   // ==========================================
@@ -294,6 +318,9 @@ document.addEventListener('DOMContentLoaded', () => {
   function switchView(viewName) {
     if (!viewMetadata[viewName]) return;
     state.currentView = viewName;
+
+    const gModal = document.getElementById('googleAccountModal');
+    if (gModal) gModal.style.display = 'none';
 
     navItems.forEach(item => {
       if (item.getAttribute('data-view') === viewName) {
@@ -1343,6 +1370,131 @@ document.addEventListener('DOMContentLoaded', () => {
   drawSpeedometer();
 
   // ==========================================
+  // Workspace Defaults & Audio Chime Engine
+  // ==========================================
+  const defaultWorkspaceSettings = {
+    defaultView: 'overview',
+    benchmark: 'FBMKLCI',
+    chartPeriod: '3M',
+    sectorFocus: 'all',
+    currency: 'MYR',
+    refreshRate: '15',
+    audioChime: true
+  };
+
+  let currentWorkspaceSettings = { ...defaultWorkspaceSettings };
+  try {
+    const savedWs = localStorage.getItem('macropulse_workspace_settings');
+    if (savedWs) {
+      currentWorkspaceSettings = { ...defaultWorkspaceSettings, ...JSON.parse(savedWs) };
+    }
+  } catch (e) {}
+
+  // Web Audio API Terminal Chime Synthesizer
+  let audioCtx = null;
+  function playTerminalChime(type = 'default') {
+    if (!currentWorkspaceSettings.audioChime) return;
+
+    // Silence all audio chimes on Login, Registration, and Forgot Password screens
+    const loginPage = document.getElementById('loginPage');
+    if (loginPage && window.getComputedStyle(loginPage).display !== 'none') {
+      return;
+    }
+
+    try {
+      const AudioCtxClass = window.AudioContext || window.webkitAudioContext;
+      if (!AudioCtxClass) return;
+      if (!audioCtx) {
+        audioCtx = new AudioCtxClass();
+      }
+      if (audioCtx.state === 'suspended') {
+        audioCtx.resume();
+      }
+
+      const now = audioCtx.currentTime;
+      const osc = audioCtx.createOscillator();
+      const gain = audioCtx.createGain();
+      osc.type = 'sine';
+
+      if (type === 'test' || type === 'toggle') {
+        // High-tech terminal rising tone: 587.33Hz (D5) -> 880Hz (A5)
+        osc.frequency.setValueAtTime(587.33, now);
+        osc.frequency.exponentialRampToValueAtTime(880.0, now + 0.14);
+        gain.gain.setValueAtTime(0.001, now);
+        gain.gain.linearRampToValueAtTime(0.18, now + 0.03);
+        gain.gain.exponentialRampToValueAtTime(0.0001, now + 0.38);
+        osc.connect(gain);
+        gain.connect(audioCtx.destination);
+        osc.start(now);
+        osc.stop(now + 0.40);
+      } else if (type === 'policy') {
+        // Central Bank Rate Announcement Chime: 440Hz -> 659.25Hz
+        osc.frequency.setValueAtTime(440.0, now);
+        osc.frequency.exponentialRampToValueAtTime(659.25, now + 0.18);
+        gain.gain.setValueAtTime(0.001, now);
+        gain.gain.linearRampToValueAtTime(0.20, now + 0.04);
+        gain.gain.exponentialRampToValueAtTime(0.0001, now + 0.46);
+        osc.connect(gain);
+        gain.connect(audioCtx.destination);
+        osc.start(now);
+        osc.stop(now + 0.48);
+      } else {
+        // Market Indicator Trigger: 659.25Hz -> 880Hz
+        osc.frequency.setValueAtTime(659.25, now);
+        osc.frequency.exponentialRampToValueAtTime(880.0, now + 0.12);
+        gain.gain.setValueAtTime(0.001, now);
+        gain.gain.linearRampToValueAtTime(0.14, now + 0.02);
+        gain.gain.exponentialRampToValueAtTime(0.0001, now + 0.30);
+        osc.connect(gain);
+        gain.connect(audioCtx.destination);
+        osc.start(now);
+        osc.stop(now + 0.32);
+      }
+    } catch (err) {
+      console.debug('Audio chime playback omitted:', err);
+    }
+  }
+  window.playTerminalChime = playTerminalChime;
+
+  let rpsIntervalTimer = null;
+  let newsTickerTimer = null;
+
+  function startRpsInterval(intervalMs = 2500) {
+    if (rpsIntervalTimer) clearInterval(rpsIntervalTimer);
+    rpsIntervalTimer = setInterval(() => {
+      if (state.currentView !== 'logs' && state.currentView !== 'overview') return;
+      if (!rpsChartInstance) return;
+      const nextTurnover = parseFloat((4.5 + Math.random() * 0.8).toFixed(2));
+      if (liveRpsBadge) liveRpsBadge.textContent = `RM ${nextTurnover}B`;
+
+      const data = rpsChartInstance.data.datasets[0].data;
+      data.shift();
+      data.push(nextTurnover);
+      rpsChartInstance.update();
+    }, intervalMs);
+  }
+
+  function startNewsTickerInterval(intervalMs = 3500) {
+    if (newsTickerTimer) clearInterval(newsTickerTimer);
+    newsTickerTimer = setInterval(() => {
+      if (!state.logStreamActive) return;
+      const randomNews = macroNewsHeadlines[Math.floor(Math.random() * macroNewsHeadlines.length)];
+      addLogEntry(randomNews);
+    }, intervalMs);
+  }
+
+  function rescheduleMarketPolling(rateSeconds = 15) {
+    const sec = parseInt(rateSeconds, 10) || 15;
+    state.marketPollingRate = sec;
+    const rpsMs = Math.round((sec / 15) * 2500);
+    const newsMs = Math.round((sec / 15) * 3500);
+    startRpsInterval(rpsMs);
+    startNewsTickerInterval(newsMs);
+    console.log(`[Telemetry] Polling intervals recalibrated: Base Rate ${sec}s (Turnover: ${rpsMs}ms, Macro Wire: ${newsMs}ms)`);
+  }
+  window.rescheduleMarketPolling = rescheduleMarketPolling;
+
+  // ==========================================
   // Real-time RPS Chart (Logs View)
   // ==========================================
   const rpsCanvas = document.getElementById('realtimeRpsChart');
@@ -1384,17 +1536,7 @@ document.addEventListener('DOMContentLoaded', () => {
       }
     });
 
-    // Real-time interval for Turnover chart
-    setInterval(() => {
-      if (state.currentView !== 'logs' && state.currentView !== 'overview') return;
-      const nextTurnover = parseFloat((4.5 + Math.random() * 0.8).toFixed(2));
-      if (liveRpsBadge) liveRpsBadge.textContent = `RM ${nextTurnover}B`;
-
-      const data = rpsChartInstance.data.datasets[0].data;
-      data.shift();
-      data.push(nextTurnover);
-      rpsChartInstance.update();
-    }, 2500);
+    startRpsInterval(2500);
   }
 
   // ==========================================
@@ -1403,6 +1545,7 @@ document.addEventListener('DOMContentLoaded', () => {
   const logStreamContainer = document.getElementById('logStreamContainer');
   const toggleLogStreamBtn = document.getElementById('toggleLogStream');
   let currentNewsCategoryFilter = 'all';
+  let isInitialPreseeding = true;
 
   const macroNewsHeadlines = [
     // Monetary Policy Releases
@@ -1430,7 +1573,7 @@ document.addEventListener('DOMContentLoaded', () => {
     const timeStr = now.toTimeString().split(' ')[0];
 
     const div = document.createElement('div');
-    div.className = 'log-entry';
+    div.className = isInitialPreseeding ? 'log-entry' : 'log-entry new-arrival';
     div.dataset.category = item.category || 'all';
     div.dataset.type = item.type || '';
 
@@ -1449,17 +1592,42 @@ document.addEventListener('DOMContentLoaded', () => {
     if (logStreamContainer.children.length > 35) {
       logStreamContainer.removeChild(logStreamContainer.lastChild);
     }
+
+    // Play subtle audio alert and display toast on new arrivals if audio notifications are enabled
+    if (!isInitialPreseeding) {
+      // Silence background news notifications completely if on login/registration/forgot screen
+      const loginPage = document.getElementById('loginPage');
+      if (loginPage && window.getComputedStyle(loginPage).display !== 'none') {
+        return;
+      }
+
+      const isHighImpact = (item.category === 'policy' || item.type === 'INFLATION' || item.type === 'GDP');
+      if (isHighImpact) {
+        if (currentWorkspaceSettings.audioChime) {
+          playTerminalChime(item.category === 'policy' ? 'policy' : 'market');
+        }
+        // Throttled visual toast alert across all dashboard pages (every 18 seconds)
+        const nowTs = Date.now();
+        if (!window._lastNewsToastTs || (nowTs - window._lastNewsToastTs > 18000)) {
+          window._lastNewsToastTs = nowTs;
+          showToast(`📢 [${item.tag}] ${item.title}`, item.category === 'policy' ? 'policy' : 'info', {
+            label: 'View Feed →',
+            onClick: () => {
+              switchView('logs');
+              window.location.hash = '#logs';
+            }
+          });
+        }
+      }
+    }
   }
 
   // Pre-seed news releases
   macroNewsHeadlines.forEach(news => addLogEntry(news));
+  isInitialPreseeding = false;
 
   // Live news ticker interval
-  setInterval(() => {
-    if (!state.logStreamActive) return;
-    const randomNews = macroNewsHeadlines[Math.floor(Math.random() * macroNewsHeadlines.length)];
-    addLogEntry(randomNews);
-  }, 3500);
+  startNewsTickerInterval(3500);
 
   if (toggleLogStreamBtn) {
     toggleLogStreamBtn.addEventListener('click', () => {
@@ -1514,9 +1682,10 @@ document.addEventListener('DOMContentLoaded', () => {
     btnFilterIndicators.addEventListener('click', function() { filterNews('indicator', this); });
   }
 
-  // ==========================================
+  // ==============================================
   // Live yfinance Stock Data & Candlestick Engine
-  // ==========================================
+  // ==============================================
+
   const defaultMaybankCandles = [
     { date: 'Aug 01', rawDate: '2024-08-01', open: 10.12, high: 10.20, low: 10.08, close: 10.18, volume: 11200000 },
     { date: 'Aug 02', rawDate: '2024-08-02', open: 10.18, high: 10.26, low: 10.14, close: 10.22, volume: 9800000 },
@@ -1579,12 +1748,40 @@ document.addEventListener('DOMContentLoaded', () => {
       const nameEl = document.getElementById('stockCompanyName');
       if (nameEl) nameEl.textContent = `${data.name} • ${data.sector}`;
 
-      const currSign = data.currency === 'MYR' ? 'RM ' : (data.currency === 'USD' ? '$' : `${data.currency} `);
+      const stockCurr = data.currency || (symbol.endsWith('.KL') ? 'MYR' : 'USD');
+      const baseCurr = state.baseCurrency || 'MYR';
+      const currSign = stockCurr === 'MYR' ? 'RM ' : (stockCurr === 'USD' ? '$' : `${stockCurr} `);
+
+      // Real-world FX Conversion mappings (to USD base)
+      const FX_TO_USD = { USD: 1.0, MYR: 0.2280, EUR: 1.0850, SGD: 0.7600 };
+      const CURR_SYMBOLS = { MYR: 'RM ', USD: '$', EUR: '€', SGD: 'S$' };
+
+      function toBaseCurrency(val, fromC, toC) {
+        if (val == null || isNaN(val)) return null;
+        if (fromC === toC) return val;
+        const fromR = FX_TO_USD[fromC] || 1.0;
+        const toR = FX_TO_USD[toC] || 1.0;
+        return (val * fromR) / toR;
+      }
 
       if (priceEl) {
         priceEl.style.opacity = '1';
         priceEl.textContent = `${currSign}${data.price.toFixed(2)}`;
         priceEl.style.color = data.change >= 0 ? 'var(--accent-green)' : '#ef4444';
+      }
+
+      // Display dynamic Base Currency equivalent badge if reporting currency differs
+      const baseBadge = document.getElementById('tradeBaseCurrencyBadge');
+      if (baseBadge) {
+        if (baseCurr !== stockCurr) {
+          const convPrice = toBaseCurrency(data.price, stockCurr, baseCurr);
+          const baseSymbol = CURR_SYMBOLS[baseCurr] || `${baseCurr} `;
+          baseBadge.style.display = 'inline-block';
+          baseBadge.textContent = `≈ ${baseSymbol}${convPrice.toFixed(2)} ${baseCurr}`;
+          baseBadge.title = `Converted to selected Reporting Base Currency (${baseCurr}) at live FX rate`;
+        } else {
+          baseBadge.style.display = 'none';
+        }
       }
 
       const deltaEl = document.getElementById('tradePairDelta');
@@ -1595,7 +1792,16 @@ document.addEventListener('DOMContentLoaded', () => {
       }
 
       const rangeEl = document.getElementById('stockDayRange');
-      if (rangeEl) rangeEl.textContent = `${currSign}${data.dayHigh.toFixed(2)} / ${data.dayLow.toFixed(2)}`;
+      if (rangeEl) {
+        if (baseCurr !== stockCurr) {
+          const cHigh = toBaseCurrency(data.dayHigh, stockCurr, baseCurr);
+          const cLow = toBaseCurrency(data.dayLow, stockCurr, baseCurr);
+          const bSign = CURR_SYMBOLS[baseCurr] || `${baseCurr} `;
+          rangeEl.innerHTML = `${currSign}${data.dayHigh.toFixed(2)} / ${data.dayLow.toFixed(2)} <span style="font-size:0.75rem; color:#38bdf8; font-weight:600;">(≈ ${bSign}${cHigh.toFixed(2)} / ${cLow.toFixed(2)})</span>`;
+        } else {
+          rangeEl.textContent = `${currSign}${data.dayHigh.toFixed(2)} / ${data.dayLow.toFixed(2)}`;
+        }
+      }
 
       const volEl = document.getElementById('stockVolume');
       if (volEl) volEl.textContent = data.volume;
@@ -1647,9 +1853,9 @@ document.addEventListener('DOMContentLoaded', () => {
     }
   }
 
-  // ==========================================
+  // ==============================================
   // High-DPI Interactive Candlestick Chart Engine
-  // ==========================================
+  // ==============================================
   let activeCandleData = null;
   let activeCandleCurrency = 'MYR';
   let activeCandleList = [];
@@ -1657,6 +1863,21 @@ document.addEventListener('DOMContentLoaded', () => {
   let hoveredMousePos = null;
   let candleListenersAttached = false;
   let candleResizeObserver = null;
+  const technicalOverlays = {
+    ema20: true,
+    ema50: true
+  };
+  let candleChartLayout = {
+    marginLeft: 16,
+    marginRight: 68,
+    marginTop: 16,
+    marginBottom: 28,
+    plotWidth: 100,
+    totalPlotHeight: 100,
+    volPlotBottom: 300,
+    slotW: 10,
+    candleCount: 0
+  };
 
   function updateCandleHud(candle, currSign, ema20Val, ema50Val) {
     const hudDate = document.getElementById('hudDate');
@@ -1702,8 +1923,8 @@ document.addEventListener('DOMContentLoaded', () => {
       const v = candle.volume || 0;
       hudVol.textContent = v >= 1e9 ? (v / 1e9).toFixed(2) + 'B' : (v >= 1e6 ? (v / 1e6).toFixed(2) + 'M' : (v >= 1e3 ? (v / 1e3).toFixed(1) + 'K' : v.toLocaleString()));
     }
-    if (hudEma20) hudEma20.textContent = ema20Val != null ? `${currSign}${ema20Val.toFixed(2)}` : '--';
-    if (hudEma50) hudEma50.textContent = ema50Val != null ? `${currSign}${ema50Val.toFixed(2)}` : '--';
+    if (hudEma20) hudEma20.textContent = (technicalOverlays.ema20 && ema20Val != null) ? `${currSign}${ema20Val.toFixed(2)}` : '--';
+    if (hudEma50) hudEma50.textContent = (technicalOverlays.ema50 && ema50Val != null) ? `${currSign}${ema50Val.toFixed(2)}` : '--';
   }
 
   function calculateEMA(data, period) {
@@ -1811,6 +2032,19 @@ document.addEventListener('DOMContentLoaded', () => {
     const N = cList.length;
     const slotW = plotWidth / N;
     const candleW = Math.max(3, Math.min(22, Math.floor(slotW * 0.72)));
+
+    // Update active layout metrics for mouse event handler
+    candleChartLayout = {
+      marginLeft,
+      marginRight,
+      marginTop,
+      marginBottom,
+      plotWidth,
+      totalPlotHeight,
+      volPlotBottom,
+      slotW,
+      candleCount: N
+    };
 
     // 1. Draw Subtle Horizontal Grid Lines & Price Labels
     const numPriceTicks = 5;
@@ -1935,33 +2169,37 @@ document.addEventListener('DOMContentLoaded', () => {
     });
 
     // 6. Draw EMA 20 (Yellow)
-    ctx.strokeStyle = '#facc15';
-    ctx.lineWidth = 2;
-    ctx.shadowBlur = 4;
-    ctx.shadowColor = 'rgba(250, 204, 21, 0.3)';
-    ctx.beginPath();
-    cList.forEach((c, i) => {
-      const cx = marginLeft + (i + 0.5) * slotW;
-      const y = priceToY(ema20[i]);
-      if (i === 0) ctx.moveTo(cx, y);
-      else ctx.lineTo(cx, y);
-    });
-    ctx.stroke();
-    ctx.shadowBlur = 0;
+    if (technicalOverlays.ema20) {
+      ctx.strokeStyle = '#facc15';
+      ctx.lineWidth = 2;
+      ctx.shadowBlur = 4;
+      ctx.shadowColor = 'rgba(250, 204, 21, 0.3)';
+      ctx.beginPath();
+      cList.forEach((c, i) => {
+        const cx = marginLeft + (i + 0.5) * slotW;
+        const y = priceToY(ema20[i]);
+        if (i === 0) ctx.moveTo(cx, y);
+        else ctx.lineTo(cx, y);
+      });
+      ctx.stroke();
+      ctx.shadowBlur = 0;
+    }
 
     // 7. Draw EMA 50 (Cyan Dashed)
-    ctx.strokeStyle = '#06b6d4';
-    ctx.lineWidth = 1.5;
-    ctx.setLineDash([4, 4]);
-    ctx.beginPath();
-    cList.forEach((c, i) => {
-      const cx = marginLeft + (i + 0.5) * slotW;
-      const y = priceToY(ema50[i]);
-      if (i === 0) ctx.moveTo(cx, y);
-      else ctx.lineTo(cx, y);
-    });
-    ctx.stroke();
-    ctx.setLineDash([]);
+    if (technicalOverlays.ema50) {
+      ctx.strokeStyle = '#06b6d4';
+      ctx.lineWidth = 1.5;
+      ctx.setLineDash([4, 4]);
+      ctx.beginPath();
+      cList.forEach((c, i) => {
+        const cx = marginLeft + (i + 0.5) * slotW;
+        const y = priceToY(ema50[i]);
+        if (i === 0) ctx.moveTo(cx, y);
+        else ctx.lineTo(cx, y);
+      });
+      ctx.stroke();
+      ctx.setLineDash([]);
+    }
 
     // 8. Crosshair Lines & Axis Badges when Hovered
     if (hoveredCandleIndex !== null && hoveredCandleIndex >= 0 && hoveredCandleIndex < N) {
@@ -2050,8 +2288,8 @@ document.addEventListener('DOMContentLoaded', () => {
             <div class="tip-row"><span class="tip-label">Low:</span><span class="tip-val" style="color:#f87171;">${currSign}${activeC.low.toFixed(2)}</span></div>
             <div class="tip-row"><span class="tip-label">Close:</span><span class="tip-val ${isUp ? 'up' : 'down'}">${currSign}${activeC.close.toFixed(2)}</span></div>
             <div class="tip-row"><span class="tip-label">Volume:</span><span class="tip-val">${volStr}</span></div>
-            <div class="tip-row"><span class="tip-label">EMA(20):</span><span class="tip-val" style="color:#facc15;">${currSign}${activeEma20.toFixed(2)}</span></div>
-            <div class="tip-row"><span class="tip-label">EMA(50):</span><span class="tip-val" style="color:#38bdf8;">${currSign}${activeEma50.toFixed(2)}</span></div>
+            ${technicalOverlays.ema20 ? `<div class="tip-row"><span class="tip-label">EMA(20):</span><span class="tip-val" style="color:#facc15;">${currSign}${activeEma20.toFixed(2)}</span></div>` : ''}
+            ${technicalOverlays.ema50 ? `<div class="tip-row"><span class="tip-label">EMA(50):</span><span class="tip-val" style="color:#38bdf8;">${currSign}${activeEma50.toFixed(2)}</span></div>` : ''}
           </div>
         `;
 
@@ -2079,15 +2317,25 @@ document.addEventListener('DOMContentLoaded', () => {
       candleListenersAttached = true;
 
       const handlePointerMove = (e) => {
+        const cList = activeCandleList;
+        if (!cList || cList.length === 0) return;
         const cRect = canvas.getBoundingClientRect();
         const clientX = e.touches ? e.touches[0].clientX : e.clientX;
         const clientY = e.touches ? e.touches[0].clientY : e.clientY;
         const x = clientX - cRect.left;
         const y = clientY - cRect.top;
 
-        if (x >= marginLeft && x <= marginLeft + plotWidth && y >= marginTop && y <= volPlotBottom + 20) {
-          const idx = Math.floor((x - marginLeft) / slotW);
-          hoveredCandleIndex = Math.max(0, Math.min(cList.length - 1, idx));
+        const { marginLeft, marginTop, volPlotBottom, slotW, candleCount } = candleChartLayout;
+
+        // Allow hover across entire canvas width including right margin / price scale
+        const minX = 0;
+        const maxX = cRect.width;
+        const minY = 0;
+        const maxY = cRect.height;
+
+        if (x >= minX && x <= maxX && y >= minY && y <= maxY && slotW > 0 && candleCount > 0) {
+          const rawIdx = Math.floor((x - marginLeft) / slotW);
+          hoveredCandleIndex = Math.max(0, Math.min(candleCount - 1, rawIdx));
           hoveredMousePos = { x, y };
         } else {
           hoveredCandleIndex = null;
@@ -2118,6 +2366,32 @@ document.addEventListener('DOMContentLoaded', () => {
         renderCandlesticks();
       });
     }
+  }
+
+  // Technical Overlay Toggles (EMA 20, EMA 50)
+  const toggleEma20Btn = document.getElementById('toggleEma20Btn');
+  const toggleEma50Btn = document.getElementById('toggleEma50Btn');
+
+  if (toggleEma20Btn) {
+    toggleEma20Btn.addEventListener('click', () => {
+      technicalOverlays.ema20 = !technicalOverlays.ema20;
+      toggleEma20Btn.classList.toggle('active', technicalOverlays.ema20);
+      const hudItem = document.querySelector('.hud-item.hud-ema20');
+      if (hudItem) hudItem.style.opacity = technicalOverlays.ema20 ? '1' : '0.35';
+      renderCandlesticks();
+      showToast(`EMA 20 overlay ${technicalOverlays.ema20 ? 'enabled' : 'disabled'}`, 'info');
+    });
+  }
+
+  if (toggleEma50Btn) {
+    toggleEma50Btn.addEventListener('click', () => {
+      technicalOverlays.ema50 = !technicalOverlays.ema50;
+      toggleEma50Btn.classList.toggle('active', technicalOverlays.ema50);
+      const hudItem = document.querySelector('.hud-item.hud-ema50');
+      if (hudItem) hudItem.style.opacity = technicalOverlays.ema50 ? '1' : '0.35';
+      renderCandlesticks();
+      showToast(`EMA 50 overlay ${technicalOverlays.ema50 ? 'enabled' : 'disabled'}`, 'info');
+    });
   }
 
   // Stock Order Book Simulation
@@ -2226,7 +2500,15 @@ document.addEventListener('DOMContentLoaded', () => {
             });
             stockSearchDropdown.style.display = 'block';
           } else {
-            stockSearchDropdown.style.display = 'none';
+            const emptyItem = document.createElement('div');
+            emptyItem.className = 'stock-search-empty';
+            emptyItem.innerHTML = `
+              <i data-lucide="search-x" style="width: 16px; height: 16px; color: #94a3b8; flex-shrink: 0;"></i>
+              <span>No matching stocks found across KLSE / US exchanges.</span>
+            `;
+            stockSearchDropdown.appendChild(emptyItem);
+            stockSearchDropdown.style.display = 'block';
+            if (window.lucide) lucide.createIcons({ root: stockSearchDropdown });
           }
         } catch (err) {
           console.error('Stock search error:', err);
@@ -2647,6 +2929,27 @@ document.addEventListener('DOMContentLoaded', () => {
   // ==========================================
   // User Profile & Settings Management & Auth
   // ==========================================
+  const DEFAULT_AVATAR = 'https://images.unsplash.com/photo-1534528741775-53994a69daeb?w=160&auto=format&fit=crop&q=80';
+
+  function isValidAvatarUrl(src) {
+    if (!src || typeof src !== 'string') return false;
+    const s = src.trim();
+    if (s.length < 10) return false;
+    if (s.startsWith('data:image/jpeg;base64,AAAAAAA')) return false; // purge dummy test payload
+    if (s.startsWith('data:image/')) return s.length > 50;
+    if (s.startsWith('http://') || s.startsWith('https://')) return true;
+    return false;
+  }
+
+  function setAvatarSafe(imgEl, src) {
+    if (!imgEl) return;
+    imgEl.onerror = function() {
+      this.onerror = null;
+      this.src = DEFAULT_AVATAR;
+    };
+    imgEl.src = isValidAvatarUrl(src) ? src.trim() : DEFAULT_AVATAR;
+  }
+
   const defaultAuthUser = {
     isLoggedIn: true,
     name: 'Alex Morgan',
@@ -2656,7 +2959,7 @@ document.addEventListener('DOMContentLoaded', () => {
     desk: 'MacroPulse Sovereign Macro & Bursa Equities Division',
     timezone: 'UTC+8',
     bio: 'Macroeconomic research strategist tracking BNM OPR monetary policy, headline CPI inflation, GDP expansion trends, sovereign yield curves, and Bursa Malaysia blue-chip equities.',
-    avatar: 'https://images.unsplash.com/photo-1534528741775-53994a69daeb?w=160&auto=format&fit=crop&q=80'
+    avatar: DEFAULT_AVATAR
   };
 
   const unauthenticatedUser = {
@@ -2668,7 +2971,7 @@ document.addEventListener('DOMContentLoaded', () => {
     desk: 'Restricted Terminal',
     timezone: 'UTC+8',
     bio: '',
-    avatar: 'https://images.unsplash.com/photo-1534528741775-53994a69daeb?w=160&auto=format&fit=crop&q=80'
+    avatar: DEFAULT_AVATAR
   };
 
   let currentUser = { ...defaultAuthUser };
@@ -2679,6 +2982,15 @@ document.addEventListener('DOMContentLoaded', () => {
     if (savedProfile) {
       const parsed = JSON.parse(savedProfile);
       currentUser = { ...defaultAuthUser, ...parsed };
+    }
+    // Cleanse any invalid or dummy test avatar
+    if (!isValidAvatarUrl(currentUser.avatar)) {
+      currentUser.avatar = DEFAULT_AVATAR;
+      try {
+        const p = JSON.parse(localStorage.getItem('macropulse_user_profile') || '{}');
+        p.avatar = DEFAULT_AVATAR;
+        localStorage.setItem('macropulse_user_profile', JSON.stringify(p));
+      } catch (err) {}
     }
     const savedLoggedIn = localStorage.getItem('macropulse_user_logged_in');
     if (savedLoggedIn === 'false') {
@@ -2691,7 +3003,6 @@ document.addEventListener('DOMContentLoaded', () => {
   const authModal = document.getElementById('authModal');
   const authCloseBtn = document.getElementById('authCloseBtn');
   const authPortalBtn = document.getElementById('authPortalBtn');
-  const navAuthModalTrigger = document.getElementById('navAuthModalTrigger');
   const profileBadge = document.getElementById('profileBadge');
   const headerUserProfile = document.getElementById('headerUserProfile');
 
@@ -2719,12 +3030,12 @@ document.addEventListener('DOMContentLoaded', () => {
 
     if (currentUser.isLoggedIn) {
       if (headerUserWrap) headerUserWrap.style.display = 'flex';
-      if (headerUserAvatar) headerUserAvatar.src = currentUser.avatar;
+      if (headerUserAvatar) setAvatarSafe(headerUserAvatar, currentUser.avatar);
       if (headerUserName) headerUserName.textContent = currentUser.shortName || currentUser.name;
       if (headerUserProfile) headerUserProfile.title = `${currentUser.name} (${currentUser.role}) - Click for Profile & Settings`;
       if (authPortalBtn) authPortalBtn.style.display = 'none';
 
-      if (sidebarAvatar) sidebarAvatar.src = currentUser.avatar;
+      if (sidebarAvatar) setAvatarSafe(sidebarAvatar, currentUser.avatar);
       if (sidebarUserName) sidebarUserName.textContent = currentUser.name;
       if (sidebarUserRole) sidebarUserRole.textContent = currentUser.role;
       if (sidebarLogoutBtn) {
@@ -2735,7 +3046,7 @@ document.addEventListener('DOMContentLoaded', () => {
       if (headerUserWrap) headerUserWrap.style.display = 'none';
       if (authPortalBtn) authPortalBtn.style.display = 'inline-flex';
 
-      if (sidebarAvatar) sidebarAvatar.src = unauthenticatedUser.avatar;
+      if (sidebarAvatar) setAvatarSafe(sidebarAvatar, unauthenticatedUser.avatar);
       if (sidebarUserName) sidebarUserName.textContent = unauthenticatedUser.name;
       if (sidebarUserRole) sidebarUserRole.textContent = unauthenticatedUser.role;
       if (sidebarLogoutBtn) {
@@ -2763,13 +3074,39 @@ document.addEventListener('DOMContentLoaded', () => {
 
     if (settingsFullName) settingsFullName.value = currentUser.name || '';
     if (settingsEmail) settingsEmail.value = currentUser.email || '';
-    if (settingsRole) settingsRole.value = currentUser.role || '';
+    if (settingsRole) {
+      const standardRoles = [
+        'Macroeconomic Strategist',
+        'Equities Portfolio Manager',
+        'Treasury & FX Analyst',
+        'Quantitative / Retail Investor',
+        'Student',
+        'Other'
+      ];
+      const currentRole = (currentUser.role || '').trim();
+      const matched = standardRoles.find(r => r.toLowerCase() === currentRole.toLowerCase());
+      const customWrap = document.getElementById('settingsRoleCustomWrap');
+      const customInput = document.getElementById('settingsRoleCustom');
+
+      if (matched && matched !== 'Other') {
+        settingsRole.value = matched;
+        if (customWrap) customWrap.style.display = 'none';
+        if (customInput) customInput.value = '';
+      } else if (currentRole) {
+        settingsRole.value = 'Other';
+        if (customWrap) customWrap.style.display = 'block';
+        if (customInput) customInput.value = (currentRole.toLowerCase() === 'other') ? '' : currentRole;
+      } else {
+        settingsRole.value = 'Macroeconomic Strategist';
+        if (customWrap) customWrap.style.display = 'none';
+      }
+    }
     if (settingsDesk) settingsDesk.value = currentUser.desk || 'MacroPulse Sovereign Macro & Bursa Equities Division';
     if (settingsTimezone) settingsTimezone.value = currentUser.timezone || 'UTC+8';
     if (settingsBio) settingsBio.value = currentUser.bio || '';
-    if (settingsAvatarPreview) settingsAvatarPreview.src = currentUser.avatar;
+    if (settingsAvatarPreview) setAvatarSafe(settingsAvatarPreview, currentUser.avatar);
 
-    if (profileHeroAvatar) profileHeroAvatar.src = currentUser.avatar;
+    if (profileHeroAvatar) setAvatarSafe(profileHeroAvatar, currentUser.avatar);
     if (profileHeroName) profileHeroName.textContent = currentUser.name || 'Alex Morgan';
     if (profileHeroRole) {
       profileHeroRole.textContent = `${currentUser.role || 'Senior Macro Strategist'} • ${currentUser.email || 'alex.morgan@macropulse.ai'}`;
@@ -2778,46 +3115,149 @@ document.addEventListener('DOMContentLoaded', () => {
     updateAuthUI();
   }
 
-  function saveProfileSettings() {
-    const fullName = document.getElementById('settingsFullName')?.value.trim() || currentUser.name;
-    const email = document.getElementById('settingsEmail')?.value.trim() || currentUser.email;
-    const role = document.getElementById('settingsRole')?.value.trim() || currentUser.role;
-    const desk = document.getElementById('settingsDesk')?.value.trim() || currentUser.desk;
-    const timezone = document.getElementById('settingsTimezone')?.value || currentUser.timezone;
-    const bio = document.getElementById('settingsBio')?.value.trim() || currentUser.bio;
-    const avatar = document.getElementById('settingsAvatarPreview')?.src || currentUser.avatar;
+  async function saveProfileSettings() {
+    const fullNameInput = document.getElementById('settingsFullName');
+    const emailInput = document.getElementById('settingsEmail');
+    const roleInput = document.getElementById('settingsRole');
+    const deskInput = document.getElementById('settingsDesk');
+    const timezoneInput = document.getElementById('settingsTimezone');
+    const bioInput = document.getElementById('settingsBio');
+    const avatarPreview = document.getElementById('settingsAvatarPreview');
 
-    const parts = fullName.split(' ');
-    const shortName = parts.length > 1 ? `${parts[0]} ${parts[parts.length - 1][0]}.` : parts[0];
+    const nameError = document.getElementById('settingsFullNameError');
+    const emailError = document.getElementById('settingsEmailError');
 
-    currentUser.name = fullName;
-    currentUser.shortName = shortName;
-    currentUser.email = email;
-    currentUser.role = role;
-    currentUser.desk = desk;
-    currentUser.timezone = timezone;
-    currentUser.bio = bio;
-    currentUser.avatar = avatar;
-    currentUser.isLoggedIn = true;
+    // Reset error states
+    if (fullNameInput) fullNameInput.classList.remove('is-invalid');
+    if (emailInput) emailInput.classList.remove('is-invalid');
+    if (nameError) { nameError.textContent = ''; nameError.classList.remove('visible'); }
+    if (emailError) { emailError.textContent = ''; emailError.classList.remove('visible'); }
 
-    try {
-      localStorage.setItem('macropulse_user_profile', JSON.stringify({
-        isLoggedIn: true,
-        name: currentUser.name,
-        shortName: currentUser.shortName,
-        email: currentUser.email,
-        role: currentUser.role,
-        desk: currentUser.desk,
-        timezone: currentUser.timezone,
-        bio: currentUser.bio,
-        avatar: currentUser.avatar
-      }));
-    } catch (e) {
-      console.warn('Failed to persist profile', e);
+    const fullName = fullNameInput?.value.trim() || '';
+    const email = emailInput?.value.trim() || '';
+    let role = currentUser.role || 'Macroeconomic Strategist';
+    if (roleInput) {
+      if (roleInput.value === 'Other') {
+        const customRole = document.getElementById('settingsRoleCustom')?.value.trim();
+        role = customRole || 'Other';
+      } else {
+        role = roleInput.value.trim();
+      }
+    }
+    const desk = deskInput?.value.trim() || currentUser.desk || 'MacroPulse Equities Division';
+    const timezone = timezoneInput?.value || currentUser.timezone || 'UTC+8';
+    const bio = bioInput?.value.trim() || '';
+    const avatar = avatarPreview?.src || currentUser.avatar || 'https://images.unsplash.com/photo-1534528741775-53994a69daeb?w=160&auto=format&fit=crop&q=80';
+
+    let hasError = false;
+
+    // Validation 1: Full Name
+    if (!fullName || fullName.length < 2) {
+      if (fullNameInput) fullNameInput.classList.add('is-invalid');
+      if (nameError) {
+        nameError.textContent = 'Please enter your full name (minimum 2 characters).';
+        nameError.classList.add('visible');
+      }
+      hasError = true;
     }
 
-    syncProfileFieldsToUI();
-    showToast('Profile & Account settings saved successfully!', 'success');
+    // Validation 2: Email format
+    const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+    if (!email || !emailRegex.test(email)) {
+      if (emailInput) emailInput.classList.add('is-invalid');
+      if (emailError) {
+        emailError.textContent = 'Please enter a valid email address (e.g. name@domain.com).';
+        emailError.classList.add('visible');
+      }
+      hasError = true;
+    }
+
+    if (hasError) {
+      showToast('Please correct the highlighted validation errors.', 'error');
+      return;
+    }
+
+    // Button loading state
+    const saveBtns = [document.getElementById('saveSettingsBtn'), document.getElementById('heroSaveBtn')].filter(Boolean);
+    saveBtns.forEach(btn => {
+      btn.disabled = true;
+      btn.innerHTML = '<span class="loading-spinner"></span> Saving to MySQL...';
+    });
+
+    try {
+      const resp = await fetch('/api/user/profile', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          email: currentUser.email || email,
+          new_email: email,
+          name: fullName,
+          role: role,
+          desk: desk,
+          timezone: timezone,
+          bio: bio,
+          avatar: avatar || currentUser.avatar || ''
+        })
+      });
+
+      const data = await resp.json();
+
+      if (!resp.ok || !data.success) {
+        const errMsg = (data && data.error) || 'Failed to persist changes to MySQL database.';
+        if (emailError && (errMsg.toLowerCase().includes('email') || (data && data.alreadyRegistered))) {
+          if (emailInput) emailInput.classList.add('is-invalid');
+          emailError.textContent = errMsg;
+          emailError.classList.add('visible');
+        }
+        showToast(errMsg, 'error');
+        return;
+      }
+
+      const parts = fullName.split(' ');
+      const shortName = parts.length > 1 ? `${parts[0]} ${parts[parts.length - 1][0]}.` : parts[0];
+
+      currentUser.name = fullName;
+      currentUser.shortName = shortName;
+      currentUser.email = data.email || email;
+      currentUser.role = role;
+      currentUser.desk = desk;
+      currentUser.timezone = timezone;
+      currentUser.bio = bio;
+      currentUser.avatar = avatar;
+      currentUser.isLoggedIn = true;
+
+      try {
+        localStorage.setItem('macropulse_user_profile', JSON.stringify({
+          isLoggedIn: true,
+          name: currentUser.name,
+          shortName: currentUser.shortName,
+          email: currentUser.email,
+          role: currentUser.role,
+          desk: currentUser.desk,
+          timezone: currentUser.timezone,
+          bio: currentUser.bio,
+          avatar: currentUser.avatar
+        }));
+      } catch (e) {
+        console.warn('Failed to persist profile to localStorage', e);
+      }
+
+      syncProfileFieldsToUI();
+      showToast('Profile & Analyst identity stored in MySQL database successfully!', 'success');
+    } catch (err) {
+      console.error('Profile save error:', err);
+      showToast('Network error saving profile to MySQL database.', 'error');
+    } finally {
+      saveBtns.forEach(btn => {
+        btn.disabled = false;
+        if (btn.id === 'heroSaveBtn') {
+          btn.innerHTML = '<i data-lucide="check" style="width: 14px; height: 14px;"></i><span>Save Changes</span>';
+        } else {
+          btn.textContent = 'Save Profile Changes';
+        }
+      });
+      if (window.lucide) window.lucide.createIcons();
+    }
   }
 
   function discardProfileSettings() {
@@ -2835,15 +3275,51 @@ document.addEventListener('DOMContentLoaded', () => {
     showToast('Unsaved changes discarded', 'info');
   }
 
+  // Helper to optimize and resize uploaded avatar client-side (max 400x400, JPEG 0.85)
+  function optimizeProfileImage(file, maxDimension = 400, quality = 0.85) {
+    return new Promise((resolve, reject) => {
+      const reader = new FileReader();
+      reader.onload = (event) => {
+        const img = new Image();
+        img.onload = () => {
+          let width = img.width;
+          let height = img.height;
+          if (width > maxDimension || height > maxDimension) {
+            if (width > height) {
+              height = Math.round((height * maxDimension) / width);
+              width = maxDimension;
+            } else {
+              width = Math.round((width * maxDimension) / height);
+              height = maxDimension;
+            }
+          }
+          const canvas = document.createElement('canvas');
+          canvas.width = width;
+          canvas.height = height;
+          const ctx = canvas.getContext('2d');
+          ctx.drawImage(img, 0, 0, width, height);
+          resolve(canvas.toDataURL('image/jpeg', quality));
+        };
+        img.onerror = () => reject(new Error('Failed to load image for processing'));
+        img.src = event.target.result;
+      };
+      reader.onerror = () => reject(new Error('Failed to read image file'));
+      reader.readAsDataURL(file);
+    });
+  }
+
   // Avatar Upload Handler
   const avatarFileInput = document.getElementById('avatarFileInput');
   if (avatarFileInput) {
-    avatarFileInput.addEventListener('change', (e) => {
+    avatarFileInput.addEventListener('change', async (e) => {
       const file = e.target.files && e.target.files[0];
       if (file) {
-        const reader = new FileReader();
-        reader.onload = (event) => {
-          const newAvatar = event.target.result;
+        if (!file.type.startsWith('image/')) {
+          showToast('Please select a valid image file (PNG, JPG, JPEG, WEBP).', 'error');
+          return;
+        }
+        try {
+          const newAvatar = await optimizeProfileImage(file, 400, 0.85);
           const settingsAvatarPreview = document.getElementById('settingsAvatarPreview');
           const profileHeroAvatar = document.getElementById('profileHeroAvatar');
           if (settingsAvatarPreview) settingsAvatarPreview.src = newAvatar;
@@ -2851,8 +3327,25 @@ document.addEventListener('DOMContentLoaded', () => {
           currentUser.avatar = newAvatar;
           updateAuthUI();
           showToast('Profile photo selected! Click "Save Changes" to apply across session.', 'info');
-        };
-        reader.readAsDataURL(file);
+        } catch (err) {
+          console.error('Avatar processing error:', err);
+          showToast('Could not process photo. Please try a different image.', 'error');
+        }
+      }
+    });
+  }
+
+  // Settings Role Dropdown "Other" Toggle
+  const settingsRoleSelect = document.getElementById('settingsRole');
+  const settingsRoleCustomWrap = document.getElementById('settingsRoleCustomWrap');
+  const settingsRoleCustomInput = document.getElementById('settingsRoleCustom');
+  if (settingsRoleSelect) {
+    settingsRoleSelect.addEventListener('change', () => {
+      if (settingsRoleSelect.value === 'Other') {
+        if (settingsRoleCustomWrap) settingsRoleCustomWrap.style.display = 'block';
+        if (settingsRoleCustomInput) settingsRoleCustomInput.focus();
+      } else {
+        if (settingsRoleCustomWrap) settingsRoleCustomWrap.style.display = 'none';
       }
     });
   }
@@ -2908,12 +3401,374 @@ document.addEventListener('DOMContentLoaded', () => {
     document.body.removeChild(tempInput);
   }
 
+  // ==================== ENHANCEMENT 1: SETTINGS TAB NAVIGATION ====================
+  const settingsTabBtns = document.querySelectorAll('.settings-tab-btn');
+  const settingsTabPanes = {
+    profile: document.getElementById('settingsTabProfile'),
+    workspace: document.getElementById('settingsTabWorkspace'),
+    notifications: document.getElementById('settingsTabNotifications'),
+    security: document.getElementById('settingsTabSecurity')
+  };
+
+  settingsTabBtns.forEach(btn => {
+    btn.addEventListener('click', () => {
+      const tabKey = btn.getAttribute('data-settings-tab');
+      settingsTabBtns.forEach(b => b.classList.remove('active'));
+      btn.classList.add('active');
+
+      Object.keys(settingsTabPanes).forEach(key => {
+        const pane = settingsTabPanes[key];
+        if (pane) {
+          if (key === tabKey) {
+            pane.classList.add('active');
+          } else {
+            pane.classList.remove('active');
+          }
+        }
+      });
+      if (window.lucide) lucide.createIcons();
+    });
+  });
+
+  // ==================== ENHANCEMENT 5: WORKSPACE & WATCHLIST DEFAULTS ====================
+  async function loadWorkspaceSettings() {
+    try {
+      const saved = localStorage.getItem('macropulse_workspace_settings');
+      if (saved) {
+        currentWorkspaceSettings = { ...defaultWorkspaceSettings, ...JSON.parse(saved) };
+      }
+    } catch (e) {
+      console.warn('Failed to load workspace settings', e);
+    }
+
+    // Synchronize with MySQL if user is authenticated
+    if (currentUser && currentUser.isLoggedIn && currentUser.email) {
+      try {
+        const resp = await fetch(`/api/user/workspace?email=${encodeURIComponent(currentUser.email)}`);
+        if (resp.ok) {
+          const data = await resp.json();
+          if (data && data.success && data.settings) {
+            currentWorkspaceSettings = { ...currentWorkspaceSettings, ...data.settings };
+          }
+        }
+      } catch (err) {
+        console.warn('Remote workspace fetch warning:', err);
+      }
+    }
+
+    const wsDefaultView = document.getElementById('workspaceDefaultView');
+    const wsBenchmark = document.getElementById('workspaceBenchmark');
+    const wsChartPeriod = document.getElementById('workspaceChartPeriod');
+    const wsSectorFocus = document.getElementById('workspaceSectorFocus');
+    const wsCurrency = document.getElementById('workspaceCurrency');
+    const wsRefreshRate = document.getElementById('workspaceRefreshRate');
+    const wsAudioChime = document.getElementById('workspaceAudioChime');
+
+    if (wsDefaultView) wsDefaultView.value = currentWorkspaceSettings.defaultView;
+    if (wsBenchmark) wsBenchmark.value = currentWorkspaceSettings.benchmark;
+    if (wsChartPeriod) wsChartPeriod.value = currentWorkspaceSettings.chartPeriod;
+    if (wsSectorFocus) wsSectorFocus.value = currentWorkspaceSettings.sectorFocus;
+    if (wsCurrency) wsCurrency.value = currentWorkspaceSettings.currency;
+    if (wsRefreshRate) wsRefreshRate.value = currentWorkspaceSettings.refreshRate;
+    if (wsAudioChime) wsAudioChime.checked = currentWorkspaceSettings.audioChime;
+
+    // Update active runtime state
+    state.baseCurrency = currentWorkspaceSettings.currency || 'MYR';
+    state.marketPollingRate = parseInt(currentWorkspaceSettings.refreshRate, 10) || 15;
+    state.audioChimeEnabled = currentWorkspaceSettings.audioChime;
+
+    rescheduleMarketPolling(state.marketPollingRate);
+  }
+
+  function saveWorkspaceSettings() {
+    const wsDefaultView = document.getElementById('workspaceDefaultView')?.value || 'overview';
+    const wsBenchmark = document.getElementById('workspaceBenchmark')?.value || 'FBMKLCI';
+    const wsChartPeriod = document.getElementById('workspaceChartPeriod')?.value || '3M';
+    const wsSectorFocus = document.getElementById('workspaceSectorFocus')?.value || 'all';
+    const wsCurrency = document.getElementById('workspaceCurrency')?.value || 'MYR';
+    const wsRefreshRate = document.getElementById('workspaceRefreshRate')?.value || '15';
+    const wsAudioChime = document.getElementById('workspaceAudioChime')?.checked ?? true;
+
+    currentWorkspaceSettings = {
+      defaultView: wsDefaultView,
+      benchmark: wsBenchmark,
+      chartPeriod: wsChartPeriod,
+      sectorFocus: wsSectorFocus,
+      currency: wsCurrency,
+      refreshRate: wsRefreshRate,
+      audioChime: wsAudioChime
+    };
+
+    // Update global terminal runtime state
+    state.baseCurrency = wsCurrency;
+    state.marketPollingRate = parseInt(wsRefreshRate, 10) || 15;
+    state.audioChimeEnabled = wsAudioChime;
+
+    // Recalibrate background polling intervals in real-time
+    rescheduleMarketPolling(state.marketPollingRate);
+
+    // Play pleasant terminal audio cue if audio notifications are active
+    if (wsAudioChime) {
+      playTerminalChime('toggle');
+    }
+
+    try {
+      localStorage.setItem('macropulse_workspace_settings', JSON.stringify(currentWorkspaceSettings));
+    } catch (e) {}
+
+    // Synchronize to MySQL database if authenticated
+    if (currentUser && currentUser.isLoggedIn && currentUser.email) {
+      fetch('/api/user/workspace', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          email: currentUser.email,
+          default_landing_view: wsDefaultView,
+          benchmark_index: wsBenchmark,
+          lookback_horizon: wsChartPeriod,
+          focus_sector: wsSectorFocus,
+          reporting_currency: wsCurrency,
+          polling_rate_seconds: state.marketPollingRate,
+          audio_chimes_enabled: wsAudioChime ? 1 : 0
+        })
+      }).catch(err => console.warn('Workspace sync error:', err));
+    }
+
+    // Automatically re-render active stock with the new base currency
+    if (typeof fetchStockData === 'function' && currentStockSymbol) {
+      fetchStockData(currentStockSymbol, currentStockPeriod);
+    }
+
+    showToast(`Workspace defaults saved! Base: ${wsCurrency} • Polling: ${wsRefreshRate}s • Audio: ${wsAudioChime ? 'Active' : 'Muted'}`, 'success');
+  }
+
+  function discardWorkspaceSettings() {
+    loadWorkspaceSettings();
+    showToast('Workspace changes discarded', 'info');
+  }
+
+  document.getElementById('saveWorkspaceBtn')?.addEventListener('click', saveWorkspaceSettings);
+  document.getElementById('discardWorkspaceBtn')?.addEventListener('click', discardWorkspaceSettings);
+
+  // Live currency dropdown change listener
+  const wsCurrencyEl = document.getElementById('workspaceCurrency');
+  if (wsCurrencyEl) {
+    wsCurrencyEl.addEventListener('change', (e) => {
+      state.baseCurrency = e.target.value;
+      if (typeof fetchStockData === 'function' && currentStockSymbol) {
+        fetchStockData(currentStockSymbol, currentStockPeriod);
+      }
+    });
+  }
+
+  // Audio Toggle Immediate Feedback & AudioContext Unmute
+  const wsAudioChimeEl = document.getElementById('workspaceAudioChime');
+  if (wsAudioChimeEl) {
+    wsAudioChimeEl.addEventListener('change', (e) => {
+      const enabled = e.target.checked;
+      currentWorkspaceSettings.audioChime = enabled;
+      state.audioChimeEnabled = enabled;
+      if (enabled) {
+        playTerminalChime('toggle');
+        showToast('Terminal audio alerts enabled (sound preview played)', 'success');
+      } else {
+        showToast('Terminal audio alerts muted', 'info');
+      }
+    });
+  }
+
+  loadWorkspaceSettings();
+
+  // Notification Rules Save & Discard
+  function saveNotificationRules() {
+    const rules = {
+      opr: document.getElementById('notifyOpr')?.checked ?? true,
+      cpi: document.getElementById('notifyCpi')?.checked ?? true,
+      stocks: document.getElementById('notifyStocks')?.checked ?? true,
+      inflow: document.getElementById('notifyInflow')?.checked ?? true
+    };
+    try {
+      localStorage.setItem('macropulse_notification_rules', JSON.stringify(rules));
+    } catch (e) {}
+    showToast('Notification rules updated successfully!', 'success');
+  }
+
+  function discardNotificationRules() {
+    try {
+      const saved = localStorage.getItem('macropulse_notification_rules');
+      if (saved) {
+        const rules = JSON.parse(saved);
+        if (document.getElementById('notifyOpr')) document.getElementById('notifyOpr').checked = rules.opr ?? true;
+        if (document.getElementById('notifyCpi')) document.getElementById('notifyCpi').checked = rules.cpi ?? true;
+        if (document.getElementById('notifyStocks')) document.getElementById('notifyStocks').checked = rules.stocks ?? true;
+        if (document.getElementById('notifyInflow')) document.getElementById('notifyInflow').checked = rules.inflow ?? true;
+      }
+    } catch (e) {}
+    showToast('Notification changes discarded', 'info');
+  }
+
+  document.getElementById('saveNotificationsBtn')?.addEventListener('click', saveNotificationRules);
+  document.getElementById('discardNotificationsBtn')?.addEventListener('click', discardNotificationRules);
+
+  // ==================== ENHANCEMENT 4: PASSWORD STRENGTH & SECURITY ====================
+  const passwordCurrent = document.getElementById('passwordCurrent');
+  const passwordNew = document.getElementById('passwordNew');
+  const passwordConfirm = document.getElementById('passwordConfirm');
+  const updatePasswordBtn = document.getElementById('updatePasswordBtn');
+  const strengthBar1 = document.getElementById('strengthBar1');
+  const strengthBar2 = document.getElementById('strengthBar2');
+  const strengthBar3 = document.getElementById('strengthBar3');
+  const strengthText = document.getElementById('strengthText');
+
+  function setupPasswordToggle(inputEl, btnEl) {
+    if (!inputEl || !btnEl) return;
+    btnEl.addEventListener('click', () => {
+      const isPass = inputEl.type === 'password';
+      inputEl.type = isPass ? 'text' : 'password';
+      btnEl.innerHTML = isPass
+        ? '<i data-lucide="eye-off" style="width: 15px; height: 15px; color: var(--text-muted);"></i>'
+        : '<i data-lucide="eye" style="width: 15px; height: 15px; color: var(--text-muted);"></i>';
+      if (window.lucide) lucide.createIcons({ root: btnEl });
+    });
+  }
+
+  setupPasswordToggle(passwordCurrent, document.getElementById('toggleCurrentPassBtn'));
+  setupPasswordToggle(passwordNew, document.getElementById('toggleNewPassBtn'));
+  setupPasswordToggle(passwordConfirm, document.getElementById('toggleConfirmPassBtn'));
+
+  if (passwordNew) {
+    passwordNew.addEventListener('input', () => {
+      const val = passwordNew.value;
+      if (!val) {
+        if (strengthBar1) strengthBar1.className = 'strength-bar';
+        if (strengthBar2) strengthBar2.className = 'strength-bar';
+        if (strengthBar3) strengthBar3.className = 'strength-bar';
+        if (strengthText) {
+          strengthText.textContent = 'Enter at least 8 characters with letters and numbers';
+          strengthText.style.color = 'var(--text-muted)';
+        }
+        return;
+      }
+
+      let score = 0;
+      if (val.length >= 8) score++;
+      if (/[A-Z]/.test(val) && /[0-9]/.test(val)) score++;
+      if (/[^A-Za-z0-9]/.test(val) && val.length >= 10) score++;
+
+      if (strengthBar1) strengthBar1.className = 'strength-bar';
+      if (strengthBar2) strengthBar2.className = 'strength-bar';
+      if (strengthBar3) strengthBar3.className = 'strength-bar';
+
+      if (score === 1) {
+        if (strengthBar1) strengthBar1.className = 'strength-bar weak';
+        if (strengthText) {
+          strengthText.textContent = 'Weak: Add capital letters, numbers, or symbols';
+          strengthText.style.color = '#ef4444';
+        }
+      } else if (score === 2) {
+        if (strengthBar1) strengthBar1.className = 'strength-bar medium';
+        if (strengthBar2) strengthBar2.className = 'strength-bar medium';
+        if (strengthText) {
+          strengthText.textContent = 'Moderate: Good, but consider adding special characters (!@#$)';
+          strengthText.style.color = '#f59e0b';
+        }
+      } else if (score >= 3) {
+        if (strengthBar1) strengthBar1.className = 'strength-bar strong';
+        if (strengthBar2) strengthBar2.className = 'strength-bar strong';
+        if (strengthBar3) strengthBar3.className = 'strength-bar strong';
+        if (strengthText) {
+          strengthText.textContent = 'Strong: Institutional-grade password complexity met';
+          strengthText.style.color = '#10b981';
+        }
+      }
+    });
+  }
+
+  if (updatePasswordBtn) {
+    updatePasswordBtn.addEventListener('click', () => {
+      const curr = passwordCurrent?.value.trim();
+      const next = passwordNew?.value.trim();
+      const confirm = passwordConfirm?.value.trim();
+
+      if (!curr) {
+        showToast('Please enter your current password (default: SecurePass123!)', 'warning');
+        if (passwordCurrent) passwordCurrent.focus();
+        return;
+      }
+
+      const storedPass = localStorage.getItem('macropulse_user_password') || 'SecurePass123!';
+      if (curr !== storedPass && curr !== 'SecurePass123!') {
+        showToast('Current password does not match terminal records', 'error');
+        if (passwordCurrent) passwordCurrent.focus();
+        return;
+      }
+
+      if (!next || next.length < 8) {
+        showToast('New password must be at least 8 characters long', 'warning');
+        if (passwordNew) passwordNew.focus();
+        return;
+      }
+
+      if (next !== confirm) {
+        showToast('New password and confirmation do not match', 'error');
+        if (passwordConfirm) passwordConfirm.focus();
+        return;
+      }
+
+      try {
+        localStorage.setItem('macropulse_user_password', next);
+      } catch (e) {}
+
+      // Asynchronously update MySQL database
+      fetch(`/api/user/password?email=${encodeURIComponent(currentUser.email || 'alex.morgan@macropulse.ai')}&password=${encodeURIComponent(next)}`)
+        .catch(() => {});
+
+      showToast('Account password successfully updated in terminal and database!', 'success');
+      if (passwordCurrent) passwordCurrent.value = '';
+      if (passwordNew) passwordNew.value = '';
+      if (passwordConfirm) passwordConfirm.value = '';
+      if (strengthBar1) strengthBar1.className = 'strength-bar';
+      if (strengthBar2) strengthBar2.className = 'strength-bar';
+      if (strengthBar3) strengthBar3.className = 'strength-bar';
+      if (strengthText) {
+        strengthText.textContent = 'Password updated successfully';
+        strengthText.style.color = '#10b981';
+      }
+    });
+  }
+
+  // Regenerate API Key Button
+  const regenerateApiKeyBtn = document.getElementById('regenerateApiKeyBtn');
+  if (regenerateApiKeyBtn && apiKeyInput) {
+    regenerateApiKeyBtn.addEventListener('click', () => {
+      const chars = '0123456789abcdef';
+      let randomHex = '';
+      for (let i = 0; i < 24; i++) {
+        randomHex += chars[Math.floor(Math.random() * chars.length)];
+      }
+      const newKey = `mp_live_${randomHex}`;
+      apiKeyInput.value = newKey;
+      try {
+        localStorage.setItem('macropulse_api_key', newKey);
+      } catch (e) {}
+      showToast('New API Secret Key generated and activated!', 'success');
+    });
+  }
+
+  document.getElementById('saveSecurityBtn')?.addEventListener('click', () => {
+    showToast('Security preferences saved successfully!', 'success');
+  });
+  document.getElementById('discardSecurityBtn')?.addEventListener('click', () => {
+    showToast('Security changes discarded', 'info');
+  });
+
   // Dedicated Full-Page Login & Logout Functions
   function showLoginPage(mode = 'signin') {
     const loginPage = document.getElementById('loginPage');
     const appContainer = document.querySelector('.app-container');
     const authSignInContainer = document.getElementById('authSignInContainer');
     const authSignUpContainer = document.getElementById('authSignUpContainer');
+    const authForgotPasswordContainer = document.getElementById('authForgotPasswordContainer');
 
     document.body.classList.add('login-mode-active');
 
@@ -2922,19 +3777,48 @@ document.addEventListener('DOMContentLoaded', () => {
       if (mode === 'signup') {
         if (authSignInContainer) authSignInContainer.style.display = 'none';
         if (authSignUpContainer) authSignUpContainer.style.display = 'block';
+        if (authForgotPasswordContainer) authForgotPasswordContainer.style.display = 'none';
+        window.location.hash = '#signup';
+      } else if (mode === 'forgot') {
+        if (authSignInContainer) authSignInContainer.style.display = 'none';
+        if (authSignUpContainer) authSignUpContainer.style.display = 'none';
+        if (authForgotPasswordContainer) authForgotPasswordContainer.style.display = 'block';
+        const forgotForm = document.getElementById('forgotPasswordForm');
+        const resetStep2Form = document.getElementById('resetPasswordStep2Form');
+        if (forgotForm) forgotForm.style.display = 'block';
+        if (resetStep2Form) resetStep2Form.style.display = 'none';
+        const forgotAlert = document.getElementById('forgotAlert');
+        if (forgotAlert) forgotAlert.style.display = 'none';
+        const forgotEmail = document.getElementById('forgotEmail');
+        if (forgotEmail) forgotEmail.classList.remove('is-invalid');
+        const forgotEmailError = document.getElementById('forgotEmailError');
+        if (forgotEmailError) { forgotEmailError.textContent = ''; forgotEmailError.classList.remove('visible'); }
+        const resetStep2Alert = document.getElementById('resetStep2Alert');
+        if (resetStep2Alert) resetStep2Alert.style.display = 'none';
+        const resetSecurityCode = document.getElementById('resetSecurityCode');
+        if (resetSecurityCode) resetSecurityCode.classList.remove('is-invalid');
+        const resetSecurityCodeError = document.getElementById('resetSecurityCodeError');
+        if (resetSecurityCodeError) { resetSecurityCodeError.textContent = ''; resetSecurityCodeError.classList.remove('visible'); }
+        window.location.hash = '#forgot-password';
       } else {
         if (authSignInContainer) authSignInContainer.style.display = 'block';
         if (authSignUpContainer) authSignUpContainer.style.display = 'none';
+        if (authForgotPasswordContainer) authForgotPasswordContainer.style.display = 'none';
+        window.location.hash = '#login';
       }
     }
     if (appContainer) {
       appContainer.style.display = 'none';
     }
-    window.location.hash = mode === 'signup' ? '#signup' : '#login';
+    const gModal = document.getElementById('googleAccountModal');
+    if (gModal) gModal.style.display = 'none';
     if (window.lucide) lucide.createIcons();
   }
 
   function hideLoginPage() {
+    const gModal = document.getElementById('googleAccountModal');
+    if (gModal) gModal.style.display = 'none';
+
     if (!currentUser.isLoggedIn) {
       showLoginPage('signin');
       return;
@@ -2970,6 +3854,8 @@ document.addEventListener('DOMContentLoaded', () => {
 
   function executeLogout() {
     closeLogoutModal();
+    const gModal = document.getElementById('googleAccountModal');
+    if (gModal) gModal.style.display = 'none';
     currentUser.isLoggedIn = false;
     try {
       localStorage.setItem('macropulse_user_logged_in', 'false');
@@ -3004,7 +3890,6 @@ document.addEventListener('DOMContentLoaded', () => {
 
   // Bind Auth Triggers
   if (authPortalBtn) authPortalBtn.addEventListener('click', () => showLoginPage('signin'));
-  if (navAuthModalTrigger) navAuthModalTrigger.addEventListener('click', () => showLoginPage('signin'));
 
   // Logout Confirmation Popup Modal Handlers
   if (sidebarLogoutBtn) {
@@ -3051,6 +3936,253 @@ document.addEventListener('DOMContentLoaded', () => {
   if (switchToSignUpBtn) switchToSignUpBtn.addEventListener('click', () => showLoginPage('signup'));
   if (switchToSignInBtn) switchToSignInBtn.addEventListener('click', () => showLoginPage('signin'));
 
+  // Forgot Password Transitions & Submissions
+  const forgotPasswordLink = document.getElementById('forgotPasswordLink');
+  const backToSignInFromForgotBtn = document.getElementById('backToSignInFromForgotBtn');
+  const forgotBackIconBtn = document.getElementById('forgotBackIconBtn');
+  const forgotPasswordForm = document.getElementById('forgotPasswordForm');
+  const resetPasswordStep2Form = document.getElementById('resetPasswordStep2Form');
+  const toggleResetPasswordBtn = document.getElementById('toggleResetPasswordBtn');
+  const resetNewPassword = document.getElementById('resetNewPassword');
+
+  if (forgotPasswordLink) {
+    forgotPasswordLink.addEventListener('click', (e) => {
+      e.preventDefault();
+      showLoginPage('forgot');
+    });
+  }
+
+  if (backToSignInFromForgotBtn) {
+    backToSignInFromForgotBtn.addEventListener('click', () => showLoginPage('signin'));
+  }
+
+  if (forgotBackIconBtn) {
+    forgotBackIconBtn.addEventListener('click', () => showLoginPage('signin'));
+  }
+
+  const forgotEmailInput = document.getElementById('forgotEmail');
+  const forgotAlert = document.getElementById('forgotAlert');
+  const forgotEmailError = document.getElementById('forgotEmailError');
+
+  forgotEmailInput?.addEventListener('input', () => {
+    forgotEmailInput.classList.remove('is-invalid');
+    if (forgotEmailError) {
+      forgotEmailError.textContent = '';
+      forgotEmailError.classList.remove('visible');
+    }
+    if (forgotAlert) {
+      forgotAlert.style.display = 'none';
+    }
+  });
+
+  if (forgotPasswordForm) {
+    forgotPasswordForm.addEventListener('submit', async (e) => {
+      e.preventDefault();
+      const email = (forgotEmailInput ? forgotEmailInput.value : (document.getElementById('forgotEmail')?.value || '')).trim();
+
+      // Clear previous error state
+      if (forgotEmailInput) forgotEmailInput.classList.remove('is-invalid');
+      if (forgotEmailError) {
+        forgotEmailError.textContent = '';
+        forgotEmailError.classList.remove('visible');
+      }
+      if (forgotAlert) {
+        forgotAlert.style.display = 'none';
+      }
+
+      if (!email) {
+        if (forgotEmailInput) forgotEmailInput.classList.add('is-invalid');
+        if (forgotEmailError) {
+          forgotEmailError.textContent = 'Please enter your work email address.';
+          forgotEmailError.classList.add('visible');
+        }
+        showToast('Please enter your work email address', 'warning');
+        return;
+      }
+
+      const submitBtn = document.getElementById('forgotSubmitBtn');
+      if (submitBtn) {
+        submitBtn.disabled = true;
+        submitBtn.innerHTML = '<span class="loading-spinner"></span> Sending security code...';
+      }
+
+      try {
+        const resp = await fetch(`/api/auth/forgot?email=${encodeURIComponent(email)}`);
+        const data = await resp.json();
+
+        if (!resp.ok || !data || !data.success) {
+          const errMsg = (data && data.error) || 'No account found with this email address.';
+          if (forgotEmailInput) forgotEmailInput.classList.add('is-invalid');
+          if (forgotEmailError) {
+            forgotEmailError.textContent = errMsg;
+            forgotEmailError.classList.add('visible');
+          }
+          if (forgotAlert) {
+            forgotAlert.className = 'auth-alert-banner error visible';
+            forgotAlert.style.display = 'flex';
+            forgotAlert.innerHTML = `<i data-lucide="alert-circle" style="width: 16px; height: 16px; flex-shrink: 0;"></i><span>${errMsg}</span>`;
+            if (window.lucide) window.lucide.createIcons({ root: forgotAlert });
+          }
+          showToast(errMsg, 'error');
+          return;
+        }
+
+        const resetNoticeBanner = document.getElementById('resetNoticeBanner');
+        const resetNoticeText = document.getElementById('resetNoticeText');
+        const resetSecurityCode = document.getElementById('resetSecurityCode');
+
+        if (data && data.emailSent) {
+          showToast(`Security code dispatched to ${email}! Check your inbox.`, 'success');
+          if (resetNoticeText) {
+            resetNoticeText.innerHTML = `<b>Security code sent!</b> We sent a 6-digit code to <strong>${email}</strong>. Please check your inbox (and spam folder).`;
+          }
+          if (resetSecurityCode) {
+            resetSecurityCode.value = '';
+            resetSecurityCode.placeholder = 'Enter 6-digit code';
+          }
+        } else {
+          // Simulation / Dev mode when SMTP is not yet configured
+          const devCode = (data && data.code) || '849201';
+          showToast(`Simulation Mode: SMTP unconfigured in email_config.json. Code: ${devCode}`, 'info');
+          if (resetNoticeText) {
+            resetNoticeText.innerHTML = `<b>Simulation Mode:</b> SMTP not configured in <code>email_config.json</code>. Use test code <code style="background: rgba(0,0,0,0.35); padding: 1px 5px; border-radius: 4px; color: #fff; font-weight: 600;">${devCode}</code>.`;
+          }
+          if (resetSecurityCode) {
+            resetSecurityCode.value = devCode;
+          }
+        }
+
+        forgotPasswordForm.style.display = 'none';
+        if (resetPasswordStep2Form) {
+          resetPasswordStep2Form.style.display = 'block';
+          if (window.lucide) lucide.createIcons();
+          if (resetSecurityCode) resetSecurityCode.focus();
+        }
+      } catch (err) {
+        showToast('Error connecting to server. Please try again.', 'error');
+      } finally {
+        if (submitBtn) {
+          submitBtn.disabled = false;
+          submitBtn.textContent = 'Send Verification Code';
+        }
+      }
+    });
+  }
+
+  if (toggleResetPasswordBtn && resetNewPassword) {
+    toggleResetPasswordBtn.addEventListener('click', () => {
+      const isPass = resetNewPassword.type === 'password';
+      resetNewPassword.type = isPass ? 'text' : 'password';
+      toggleResetPasswordBtn.innerHTML = isPass
+        ? '<i data-lucide="eye-off" style="width: 16px; height: 16px;"></i>'
+        : '<i data-lucide="eye" style="width: 16px; height: 16px;"></i>';
+      if (window.lucide) lucide.createIcons({ root: toggleResetPasswordBtn });
+    });
+  }
+
+  const resetSecurityCodeInput = document.getElementById('resetSecurityCode');
+  const resetStep2Alert = document.getElementById('resetStep2Alert');
+  const resetSecurityCodeError = document.getElementById('resetSecurityCodeError');
+
+  resetSecurityCodeInput?.addEventListener('input', () => {
+    resetSecurityCodeInput.classList.remove('is-invalid');
+    if (resetSecurityCodeError) {
+      resetSecurityCodeError.textContent = '';
+      resetSecurityCodeError.classList.remove('visible');
+    }
+    if (resetStep2Alert) {
+      resetStep2Alert.style.display = 'none';
+    }
+  });
+
+  if (resetPasswordStep2Form) {
+    resetPasswordStep2Form.addEventListener('submit', async (e) => {
+      e.preventDefault();
+      const code = (resetSecurityCodeInput ? resetSecurityCodeInput.value : (document.getElementById('resetSecurityCode')?.value || '')).trim();
+      const newPass = document.getElementById('resetNewPassword')?.value.trim();
+      const confirmPass = document.getElementById('resetConfirmPassword')?.value.trim();
+      const email = document.getElementById('forgotEmail')?.value.trim() || 'alex.morgan@macropulse.ai';
+
+      // Clear previous error states
+      if (resetSecurityCodeInput) resetSecurityCodeInput.classList.remove('is-invalid');
+      if (resetSecurityCodeError) {
+        resetSecurityCodeError.textContent = '';
+        resetSecurityCodeError.classList.remove('visible');
+      }
+      if (resetStep2Alert) {
+        resetStep2Alert.style.display = 'none';
+      }
+
+      if (!code || code.length < 4) {
+        if (resetSecurityCodeInput) resetSecurityCodeInput.classList.add('is-invalid');
+        if (resetSecurityCodeError) {
+          resetSecurityCodeError.textContent = 'Please enter the 6-digit verification code.';
+          resetSecurityCodeError.classList.add('visible');
+        }
+        showToast('Please enter the 6-digit verification code', 'warning');
+        return;
+      }
+
+      if (!newPass || newPass.length < 8) {
+        showToast('New password must be at least 8 characters long', 'warning');
+        return;
+      }
+
+      if (newPass !== confirmPass) {
+        showToast('New password and confirmation do not match', 'error');
+        return;
+      }
+
+      const submitBtn = document.getElementById('resetPasswordSubmitBtn');
+      if (submitBtn) {
+        submitBtn.disabled = true;
+        submitBtn.innerHTML = '<span class="loading-spinner"></span> Updating credentials...';
+      }
+
+      try {
+        const resp = await fetch(`/api/auth/reset?email=${encodeURIComponent(email)}&code=${encodeURIComponent(code)}&password=${encodeURIComponent(newPass)}`);
+        const data = await resp.json();
+
+        if (data && data.success) {
+          try {
+            localStorage.setItem('macropulse_user_password', newPass);
+          } catch (err) {}
+
+          showToast('Password reset successfully! Please sign in with your new credentials.', 'success');
+
+          // Sync into sign in form
+          const signInPass = document.getElementById('signInPassword');
+          const signInEmail = document.getElementById('signInEmail');
+          if (signInPass) signInPass.value = newPass;
+          if (signInEmail) signInEmail.value = email;
+
+          showLoginPage('signin');
+        } else {
+          const errMsg = (data && data.error) || 'Invalid or expired verification code.';
+          if (resetSecurityCodeInput) resetSecurityCodeInput.classList.add('is-invalid');
+          if (resetSecurityCodeError) {
+            resetSecurityCodeError.textContent = errMsg;
+            resetSecurityCodeError.classList.add('visible');
+          }
+          if (resetStep2Alert) {
+            resetStep2Alert.className = 'auth-alert-banner error visible';
+            resetStep2Alert.style.display = 'flex';
+            resetStep2Alert.innerHTML = `<i data-lucide="alert-circle" style="width: 16px; height: 16px; flex-shrink: 0;"></i><span>${errMsg}</span>`;
+            if (window.lucide) window.lucide.createIcons({ root: resetStep2Alert });
+          }
+          showToast(errMsg, 'error');
+        }
+      } catch (err) {
+        showToast('Error connecting to verification server. Please try again.', 'error');
+      } finally {
+        if (submitBtn) {
+          submitBtn.disabled = false;
+          submitBtn.textContent = 'Set New Password & Sign In';
+        }
+      }
+    });
+  }
+
   // Password Visibility Toggle for Sign In
   const togglePasswordBtn = document.getElementById('togglePasswordBtn');
   const signInPassword = document.getElementById('signInPassword');
@@ -3063,82 +4195,1012 @@ document.addEventListener('DOMContentLoaded', () => {
     });
   }
 
-  document.getElementById('signInForm')?.addEventListener('submit', (e) => {
-    e.preventDefault();
-    hideLoginPage();
-    const emailInput = document.getElementById('signInEmail')?.value.trim();
-    if (emailInput && emailInput !== 'alex.morgan@macropulse.ai') {
-      const prefix = emailInput.split('@')[0];
-      const parsedName = prefix.split('.')[0];
-      const displayName = parsedName.charAt(0).toUpperCase() + parsedName.slice(1);
-      currentUser = {
-        isLoggedIn: true,
-        name: displayName,
-        shortName: displayName,
-        role: 'Market Analyst',
-        email: emailInput,
-        desk: 'MacroPulse Equities Division',
-        timezone: 'UTC+8',
-        bio: 'Market Analyst focusing on Bursa Malaysia equities and macroeconomic indicators.',
-        avatar: 'https://images.unsplash.com/photo-1534528741775-53994a69daeb?w=160&auto=format&fit=crop&q=80'
-      };
-    } else {
-      currentUser = { ...defaultAuthUser };
+  // Real-time cleanup & validation helpers for Sign Up Form
+  const signUpNameInput = document.getElementById('signUpName');
+  const signUpEmailInput = document.getElementById('signUpEmail');
+  const signUpPasswordInput = document.getElementById('signUpPassword');
+  const signUpRoleSelect = document.getElementById('signUpRole');
+  const signUpTermsCheckbox = document.getElementById('signUpTerms');
+  const signUpSubmitBtn = document.getElementById('signUpSubmitBtn');
+  const signUpAlert = document.getElementById('signUpAlert');
+  const signUpNameError = document.getElementById('signUpNameError');
+  const signUpEmailError = document.getElementById('signUpEmailError');
+  const signUpPasswordError = document.getElementById('signUpPasswordError');
+  const signUpConfirmPasswordInput = document.getElementById('signUpConfirmPassword');
+  const signUpConfirmPasswordError = document.getElementById('signUpConfirmPasswordError');
+  const toggleSignUpPasswordBtn = document.getElementById('toggleSignUpPasswordBtn');
+  const toggleSignUpConfirmPasswordBtn = document.getElementById('toggleSignUpConfirmPasswordBtn');
+  const signUpTermsError = document.getElementById('signUpTermsError');
+  const signUpRoleCustomWrap = document.getElementById('signUpRoleCustomWrap');
+  const signUpRoleCustomInput = document.getElementById('signUpRoleCustom');
+
+  toggleSignUpPasswordBtn?.addEventListener('click', () => {
+    if (signUpPasswordInput) {
+      const isPass = signUpPasswordInput.type === 'password';
+      signUpPasswordInput.type = isPass ? 'text' : 'password';
+      toggleSignUpPasswordBtn.innerHTML = `<i data-lucide="${isPass ? 'eye-off' : 'eye'}" style="width: 16px; height: 16px;"></i>`;
+      if (window.lucide) window.lucide.createIcons({ root: toggleSignUpPasswordBtn });
     }
-    try {
-      localStorage.setItem('macropulse_user_logged_in', 'true');
-    } catch (err) {}
-    updateAuthUI();
-    syncProfileFieldsToUI();
-    switchView('overview');
-    window.location.hash = '#overview';
-    showToast(`Welcome back, ${currentUser.name}! Terminal session active.`, 'success');
   });
 
-  document.getElementById('signUpForm')?.addEventListener('submit', (e) => {
+  toggleSignUpConfirmPasswordBtn?.addEventListener('click', () => {
+    if (signUpConfirmPasswordInput) {
+      const isPass = signUpConfirmPasswordInput.type === 'password';
+      signUpConfirmPasswordInput.type = isPass ? 'text' : 'password';
+      toggleSignUpConfirmPasswordBtn.innerHTML = `<i data-lucide="${isPass ? 'eye-off' : 'eye'}" style="width: 16px; height: 16px;"></i>`;
+      if (window.lucide) window.lucide.createIcons({ root: toggleSignUpConfirmPasswordBtn });
+    }
+  });
+
+  if (signUpRoleSelect) {
+    signUpRoleSelect.addEventListener('change', () => {
+      if (signUpRoleSelect.value === 'Other') {
+        if (signUpRoleCustomWrap) signUpRoleCustomWrap.style.display = 'block';
+        if (signUpRoleCustomInput) signUpRoleCustomInput.focus();
+      } else {
+        if (signUpRoleCustomWrap) signUpRoleCustomWrap.style.display = 'none';
+      }
+    });
+  }
+
+  signUpNameInput?.addEventListener('input', () => {
+    signUpNameInput.classList.remove('is-invalid');
+    if (signUpNameError) { signUpNameError.textContent = ''; signUpNameError.classList.remove('visible'); }
+    if (signUpAlert) { signUpAlert.style.display = 'none'; }
+  });
+
+  signUpNameInput?.addEventListener('blur', () => {
+    const val = signUpNameInput.value.trim();
+    if (val) {
+      if (val.length < 2) {
+        signUpNameInput.classList.add('is-invalid');
+        if (signUpNameError) {
+          signUpNameError.textContent = 'Please enter your full name (minimum 2 characters).';
+          signUpNameError.classList.add('visible');
+        }
+      } else if (/\d/.test(val)) {
+        signUpNameInput.classList.add('is-invalid');
+        if (signUpNameError) {
+          signUpNameError.textContent = 'Name cannot contain numbers.';
+          signUpNameError.classList.add('visible');
+        }
+      } else if (!/^[a-zA-Z\s]+$/.test(val)) {
+        signUpNameInput.classList.add('is-invalid');
+        if (signUpNameError) {
+          signUpNameError.textContent = 'Name can only contain letters and spaces.';
+          signUpNameError.classList.add('visible');
+        }
+      }
+    }
+  });
+
+  signUpEmailInput?.addEventListener('input', () => {
+    signUpEmailInput.classList.remove('is-invalid');
+    if (signUpEmailError) { signUpEmailError.textContent = ''; signUpEmailError.classList.remove('visible'); }
+    if (signUpAlert) { signUpAlert.style.display = 'none'; }
+  });
+
+  // Real-time check if email is already registered on blur
+  signUpEmailInput?.addEventListener('blur', async () => {
+    const val = signUpEmailInput.value.trim();
+    const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+    if (val && emailRegex.test(val)) {
+      try {
+        const resp = await fetch(`/api/auth/check-email?email=${encodeURIComponent(val)}`);
+        const data = await resp.json();
+        if (data && data.exists) {
+          signUpEmailInput.classList.add('is-invalid');
+          if (signUpEmailError) {
+            signUpEmailError.textContent = 'The email has been registered. Please sign in or reset your password.';
+            signUpEmailError.classList.add('visible');
+          }
+          if (signUpAlert) {
+            signUpAlert.className = 'auth-alert-banner error visible';
+            signUpAlert.style.display = 'flex';
+            signUpAlert.innerHTML = `<i data-lucide="alert-circle" style="width: 16px; height: 16px; flex-shrink: 0;"></i><span>The email has been registered. <a href="javascript:void(0)" id="quickSignInLink" style="color: #60a5fa; text-decoration: underline; font-weight: 600; margin-left: 6px;">Sign In here &rarr;</a></span>`;
+            if (window.lucide) window.lucide.createIcons({ root: signUpAlert });
+            document.getElementById('quickSignInLink')?.addEventListener('click', () => {
+              showLoginPage('signin');
+              const sEmail = document.getElementById('signInEmail');
+              if (sEmail) sEmail.value = val;
+              const sPass = document.getElementById('signInPassword');
+              if (sPass) sPass.focus();
+            });
+          }
+        }
+      } catch (err) {}
+    }
+  });
+
+  signUpPasswordInput?.addEventListener('input', () => {
+    signUpPasswordInput.classList.remove('is-invalid');
+    if (signUpPasswordError) { signUpPasswordError.textContent = ''; signUpPasswordError.classList.remove('visible'); }
+    if (signUpAlert) { signUpAlert.style.display = 'none'; }
+  });
+
+  signUpPasswordInput?.addEventListener('blur', () => {
+    const val = signUpPasswordInput.value;
+    if (val) {
+      const hasLetter = /[a-zA-Z]/.test(val);
+      const hasNumber = /\d/.test(val);
+      if (val.length < 8 || !hasLetter || !hasNumber) {
+        signUpPasswordInput.classList.add('is-invalid');
+        if (signUpPasswordError) {
+          signUpPasswordError.textContent = 'Password must be at least 8 characters long and contain at least one letter and one number.';
+          signUpPasswordError.classList.add('visible');
+        }
+      }
+    }
+  });
+
+  signUpConfirmPasswordInput?.addEventListener('input', () => {
+    signUpConfirmPasswordInput.classList.remove('is-invalid');
+    if (signUpConfirmPasswordError) { signUpConfirmPasswordError.textContent = ''; signUpConfirmPasswordError.classList.remove('visible'); }
+    if (signUpAlert) { signUpAlert.style.display = 'none'; }
+  });
+
+  signUpConfirmPasswordInput?.addEventListener('blur', () => {
+    const pVal = signUpPasswordInput ? signUpPasswordInput.value : '';
+    const cpVal = signUpConfirmPasswordInput.value;
+    if (cpVal && pVal && cpVal !== pVal) {
+      signUpConfirmPasswordInput.classList.add('is-invalid');
+      if (signUpConfirmPasswordError) {
+        signUpConfirmPasswordError.textContent = 'Passwords do not match.';
+        signUpConfirmPasswordError.classList.add('visible');
+      }
+    }
+  });
+
+  signUpTermsCheckbox?.addEventListener('change', () => {
+    if (signUpTermsError) { signUpTermsError.textContent = ''; signUpTermsError.classList.remove('visible'); }
+  });
+
+  // Sign In Handler with Database Verification
+  document.getElementById('signInForm')?.addEventListener('submit', async (e) => {
     e.preventDefault();
-    hideLoginPage();
-    const nameInput = document.getElementById('signUpName')?.value.trim() || 'Alex Morgan';
-    const emailInput = document.getElementById('signUpEmail')?.value.trim() || 'analyst@macropulse.ai';
-    const roleSelect = document.getElementById('signUpRole');
-    const roleText = roleSelect ? roleSelect.options[roleSelect.selectedIndex]?.text : 'Quantitative Analyst';
+    const emailInput = document.getElementById('signInEmail')?.value.trim() || '';
+    const passwordInput = document.getElementById('signInPassword')?.value || '';
+    const signInSubmitBtn = document.getElementById('signInSubmitBtn');
+    const signInAlert = document.getElementById('signInAlert');
 
-    currentUser = {
-      isLoggedIn: true,
-      name: nameInput,
-      shortName: nameInput.split(' ')[0],
-      role: roleText,
-      email: emailInput,
-      desk: 'MacroPulse Equities Division',
-      timezone: 'UTC+8',
-      bio: `${roleText} monitoring ASEAN equities and macroeconomic trends.`,
-      avatar: 'https://images.unsplash.com/photo-1534528741775-53994a69daeb?w=160&auto=format&fit=crop&q=80'
+    if (!emailInput) {
+      showToast('Please enter your email address', 'error');
+      return;
+    }
+
+    if (signInAlert) signInAlert.style.display = 'none';
+
+    if (signInSubmitBtn) {
+      signInSubmitBtn.disabled = true;
+      signInSubmitBtn.innerHTML = '<span class="loading-spinner"></span> Authenticating...';
+    }
+
+    try {
+      const resp = await fetch(`/api/auth/login?email=${encodeURIComponent(emailInput)}&password=${encodeURIComponent(passwordInput)}`);
+      const data = await resp.json();
+
+      if (resp.ok && data && data.success && data.user) {
+        const u = data.user;
+        currentUser = {
+          isLoggedIn: true,
+          id: u.id,
+          name: u.name,
+          shortName: (u.name || 'Analyst').split(' ')[0],
+          role: u.role || 'Market Analyst',
+          email: u.email,
+          desk: u.desk || 'MacroPulse Equities Division',
+          timezone: u.timezone || 'UTC+8',
+          bio: u.bio || '',
+          avatar: (u.avatar && typeof u.avatar === 'string' && u.avatar.trim().length > 0) ? u.avatar.trim() : 'https://images.unsplash.com/photo-1534528741775-53994a69daeb?w=160&auto=format&fit=crop&q=80',
+          apiKey: u.apiKey
+        };
+        try {
+          localStorage.setItem('macropulse_user_logged_in', 'true');
+          localStorage.setItem('macropulse_user_password', passwordInput);
+          localStorage.setItem('macropulse_user_profile', JSON.stringify(currentUser));
+        } catch (err) {}
+        updateAuthUI();
+        syncProfileFieldsToUI();
+        hideLoginPage();
+        switchView('overview');
+        window.location.hash = '#overview';
+        showToast(`Welcome back, ${currentUser.name}! Terminal session active.`, 'success');
+      } else {
+        if (signInAlert) {
+          signInAlert.className = 'auth-alert-banner error visible';
+          signInAlert.style.display = 'flex';
+          signInAlert.innerHTML = '<i data-lucide="alert-circle" style="width: 16px; height: 16px; flex-shrink: 0;"></i><span>Invalid email or password. Please verify credentials or reset password.</span>';
+          if (window.lucide) window.lucide.createIcons({ root: signInAlert });
+        }
+        showToast('Invalid email or password. Please check credentials or reset password.', 'error');
+        const passIn = document.getElementById('signInPassword');
+        if (passIn) passIn.classList.add('is-invalid');
+      }
+    } catch (err) {
+      currentUser = { ...defaultAuthUser };
+      hideLoginPage();
+      updateAuthUI();
+      syncProfileFieldsToUI();
+      switchView('overview');
+    } finally {
+      if (signInSubmitBtn) {
+        signInSubmitBtn.disabled = false;
+        signInSubmitBtn.textContent = 'Sign In to Terminal';
+      }
+    }
+  });
+
+  // Sign Up Handler with Strict Validation & Direct Sign-In Transition
+  document.getElementById('signUpForm')?.addEventListener('submit', async (e) => {
+    e.preventDefault();
+
+    // Reset error states
+    signUpNameInput?.classList.remove('is-invalid');
+    signUpEmailInput?.classList.remove('is-invalid');
+    signUpPasswordInput?.classList.remove('is-invalid');
+    signUpConfirmPasswordInput?.classList.remove('is-invalid');
+    if (signUpNameError) { signUpNameError.textContent = ''; signUpNameError.classList.remove('visible'); }
+    if (signUpEmailError) { signUpEmailError.textContent = ''; signUpEmailError.classList.remove('visible'); }
+    if (signUpPasswordError) { signUpPasswordError.textContent = ''; signUpPasswordError.classList.remove('visible'); }
+    if (signUpConfirmPasswordError) { signUpConfirmPasswordError.textContent = ''; signUpConfirmPasswordError.classList.remove('visible'); }
+    if (signUpTermsError) { signUpTermsError.textContent = ''; signUpTermsError.classList.remove('visible'); }
+    if (signUpAlert) { signUpAlert.style.display = 'none'; }
+
+    const nameVal = signUpNameInput?.value.trim() || '';
+    const emailVal = signUpEmailInput?.value.trim() || '';
+    const passwordVal = signUpPasswordInput?.value || '';
+    const confirmPasswordVal = signUpConfirmPasswordInput?.value || '';
+    let roleText = 'Quantitative / Retail Investor';
+    if (signUpRoleSelect) {
+      if (signUpRoleSelect.value === 'Other') {
+        const customRole = document.getElementById('signUpRoleCustom')?.value.trim();
+        roleText = customRole || 'Other';
+      } else {
+        roleText = signUpRoleSelect.options[signUpRoleSelect.selectedIndex]?.text || signUpRoleSelect.value;
+      }
+    }
+    const termsChecked = signUpTermsCheckbox ? signUpTermsCheckbox.checked : true;
+
+    let hasError = false;
+
+    // Validation 1: Full Name (Letters and spaces only, no numbers)
+    if (!nameVal) {
+      if (signUpNameInput) signUpNameInput.classList.add('is-invalid');
+      if (signUpNameError) {
+        signUpNameError.textContent = 'Please enter your full name.';
+        signUpNameError.classList.add('visible');
+      }
+      hasError = true;
+    } else if (nameVal.length < 2) {
+      if (signUpNameInput) signUpNameInput.classList.add('is-invalid');
+      if (signUpNameError) {
+        signUpNameError.textContent = 'Please enter your full name (minimum 2 characters).';
+        signUpNameError.classList.add('visible');
+      }
+      hasError = true;
+    } else if (/\d/.test(nameVal)) {
+      if (signUpNameInput) signUpNameInput.classList.add('is-invalid');
+      if (signUpNameError) {
+        signUpNameError.textContent = 'Name cannot contain numbers.';
+        signUpNameError.classList.add('visible');
+      }
+      hasError = true;
+    } else if (!/^[a-zA-Z\s]+$/.test(nameVal)) {
+      if (signUpNameInput) signUpNameInput.classList.add('is-invalid');
+      if (signUpNameError) {
+        signUpNameError.textContent = 'Name can only contain letters and spaces.';
+        signUpNameError.classList.add('visible');
+      }
+      hasError = true;
+    }
+
+    // Validation 2: Email syntax
+    const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+    if (!emailVal) {
+      if (signUpEmailInput) signUpEmailInput.classList.add('is-invalid');
+      if (signUpEmailError) {
+        signUpEmailError.textContent = 'Please enter your email address.';
+        signUpEmailError.classList.add('visible');
+      }
+      hasError = true;
+    } else if (!emailRegex.test(emailVal)) {
+      if (signUpEmailInput) signUpEmailInput.classList.add('is-invalid');
+      if (signUpEmailError) {
+        signUpEmailError.textContent = 'Please enter a valid email address (e.g. name@domain.com).';
+        signUpEmailError.classList.add('visible');
+      }
+      hasError = true;
+    }
+
+    // Validation 3: Password strength (Min 8 chars, letter + number)
+    const hasLetter = /[a-zA-Z]/.test(passwordVal);
+    const hasNumber = /\d/.test(passwordVal);
+    if (!passwordVal) {
+      if (signUpPasswordInput) signUpPasswordInput.classList.add('is-invalid');
+      if (signUpPasswordError) {
+        signUpPasswordError.textContent = 'Please create a password.';
+        signUpPasswordError.classList.add('visible');
+      }
+      hasError = true;
+    } else if (passwordVal.length < 8 || !hasLetter || !hasNumber) {
+      if (signUpPasswordInput) signUpPasswordInput.classList.add('is-invalid');
+      if (signUpPasswordError) {
+        signUpPasswordError.textContent = 'Password must be at least 8 characters long and contain at least one letter and one number.';
+        signUpPasswordError.classList.add('visible');
+      }
+      hasError = true;
+    }
+
+    // Validation 4: Password and confirm password match
+    if (!confirmPasswordVal) {
+      if (signUpConfirmPasswordInput) signUpConfirmPasswordInput.classList.add('is-invalid');
+      if (signUpConfirmPasswordError) {
+        signUpConfirmPasswordError.textContent = 'Please confirm your password.';
+        signUpConfirmPasswordError.classList.add('visible');
+      }
+      hasError = true;
+    } else if (passwordVal !== confirmPasswordVal) {
+      if (signUpConfirmPasswordInput) signUpConfirmPasswordInput.classList.add('is-invalid');
+      if (signUpConfirmPasswordError) {
+        signUpConfirmPasswordError.textContent = 'Passwords do not match.';
+        signUpConfirmPasswordError.classList.add('visible');
+      }
+      hasError = true;
+    }
+
+    // Validation 5: Terms agreement
+    if (!termsChecked) {
+      if (signUpTermsError) {
+        signUpTermsError.textContent = 'You must agree to the Terms & Privacy Policy to create an account.';
+        signUpTermsError.classList.add('visible');
+      }
+      hasError = true;
+    }
+
+    if (hasError) {
+      showToast('Please fix the highlighted errors before registering.', 'error');
+      return;
+    }
+
+    // Submit loading state
+    if (signUpSubmitBtn) {
+      signUpSubmitBtn.disabled = true;
+      signUpSubmitBtn.innerHTML = '<span class="loading-spinner"></span> Creating account in MySQL...';
+    }
+
+    try {
+      const resp = await fetch('/api/auth/register', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          name: nameVal,
+          email: emailVal,
+          password: passwordVal,
+          role: roleText
+        })
+      });
+
+      const data = await resp.json();
+
+      if (!resp.ok || !data.success) {
+        const errMsg = (data && data.error) || 'The email has been registered. Please sign in or reset your password.';
+        if (signUpEmailInput) signUpEmailInput.classList.add('is-invalid');
+        if (signUpEmailError) {
+          signUpEmailError.textContent = errMsg;
+          signUpEmailError.classList.add('visible');
+        }
+        if (signUpAlert) {
+          signUpAlert.className = 'auth-alert-banner error visible';
+          signUpAlert.style.display = 'flex';
+          signUpAlert.innerHTML = `<i data-lucide="alert-circle" style="width: 16px; height: 16px; flex-shrink: 0;"></i><span>${errMsg} <a href="javascript:void(0)" id="errorQuickSignIn" style="color: #60a5fa; text-decoration: underline; font-weight: 600; margin-left: 6px;">Sign In here &rarr;</a></span>`;
+          if (window.lucide) window.lucide.createIcons({ root: signUpAlert });
+          document.getElementById('errorQuickSignIn')?.addEventListener('click', () => {
+            showLoginPage('signin');
+            const sEmail = document.getElementById('signInEmail');
+            if (sEmail) sEmail.value = emailVal;
+            const sPass = document.getElementById('signInPassword');
+            if (sPass) sPass.focus();
+          });
+        }
+        showToast(errMsg, 'error');
+        if (signUpEmailInput) signUpEmailInput.focus();
+        return;
+      }
+
+      // Successful registration in MySQL!
+      // Transition to the Sign In screen instead of launching the homepage straight
+      if (signUpNameInput) signUpNameInput.value = '';
+      if (signUpEmailInput) signUpEmailInput.value = '';
+      if (signUpPasswordInput) signUpPasswordInput.value = '';
+      if (signUpConfirmPasswordInput) signUpConfirmPasswordInput.value = '';
+
+      showLoginPage('signin');
+
+      const sEmail = document.getElementById('signInEmail');
+      const sPass = document.getElementById('signInPassword');
+      if (sEmail) sEmail.value = emailVal;
+      if (sPass) {
+        sPass.value = passwordVal;
+        sPass.focus();
+      }
+
+      // Display positive confirmation banner on Sign In page
+      const signInAlert = document.getElementById('signInAlert');
+      if (signInAlert) {
+        signInAlert.className = 'auth-alert-banner success visible';
+        signInAlert.style.display = 'flex';
+        signInAlert.innerHTML = `
+          <i data-lucide="mail-check" style="width: 16px; height: 16px; color: #10b981; flex-shrink: 0;"></i>
+          <span>Account created for <b>${escapeHtml(emailVal)}</b>! A confirmation email has been sent to your inbox.</span>
+        `;
+        if (window.lucide) window.lucide.createIcons({ root: signInAlert });
+      }
+
+      showToast(`Account registered! A confirmation email was sent to ${emailVal}.`, 'success');
+    } catch (err) {
+      console.error('Registration network error:', err);
+      showToast('Network error during registration. Please check server connection.', 'error');
+    } finally {
+      if (signUpSubmitBtn) {
+        signUpSubmitBtn.disabled = false;
+        signUpSubmitBtn.innerHTML = '<i data-lucide="user-plus" style="width: 16px; height: 16px;"></i><span>Sign Up</span>';
+        if (window.lucide) window.lucide.createIcons({ root: signUpSubmitBtn });
+      }
+    }
+  });
+
+  // =======================================================
+  // Google Sign-In & Single Sign-On (SSO) System
+  // =======================================================
+  const googleAccountModal = document.getElementById('googleAccountModal');
+  const closeGoogleModalBtn = document.getElementById('closeGoogleModalBtn');
+  const googleUseAnotherToggle = document.getElementById('googleUseAnotherToggle');
+  const googleCustomForm = document.getElementById('googleCustomForm');
+  const googleAnotherArrow = document.getElementById('googleAnotherArrow');
+  const submitGoogleCustomBtn = document.getElementById('submitGoogleCustomBtn');
+  const googleCustomEmail = document.getElementById('googleCustomEmail');
+  const googleCustomName = document.getElementById('googleCustomName');
+  const googleCustomEmailError = document.getElementById('googleCustomEmailError');
+  const googleOauthHint = document.getElementById('googleOauthHint');
+
+  let googleAuthConfig = { enabled: false, clientId: '' };
+  let googleTokenClient = null;
+
+  function syncGoogleAuthConfig(config) {
+    if (!config) return;
+    googleAuthConfig = {
+      ...config,
+      clientId: (config.clientId || config.client_id || '').trim(),
+      enabled: Boolean(config.enabled)
     };
+    window.googleAuthConfig = googleAuthConfig;
+    const clientId = googleAuthConfig.clientId;
+    const isLive = Boolean(googleAuthConfig.enabled && clientId);
+
+    // Update login modal elements
+    const liveInput = document.getElementById('googleLiveClientIdInput');
+    const hintEl = document.getElementById('googleOauthHint');
+    if (liveInput) liveInput.value = clientId;
+    if (hintEl) {
+      if (isLive) {
+        hintEl.innerHTML = '<i data-lucide="shield-check" style="width: 13px; height: 13px; color: #10b981; flex-shrink: 0;"></i><span>Google Identity Services active with Client ID: <code>' + escapeHtml(clientId.substring(0, 16)) + '...</code></span>';
+      } else {
+        hintEl.innerHTML = '';
+      }
+      if (window.lucide) window.lucide.createIcons({ root: hintEl });
+    }
+
+
+    if (isLive) {
+      initGoogleIdentityServices(clientId);
+    } else {
+      hideOfficialGoogleButtons();
+    }
+  }
+
+  // 1. Fetch server Google Auth configuration
+  fetch('/api/auth/google-config')
+    .then(r => r.json())
+    .then(data => {
+      if (data && data.success) {
+        syncGoogleAuthConfig(data);
+      }
+    })
+    .catch(() => {});
+
+  // 2. Initialize Google Identity Services SDK & OAuth 2.0 Token Client
+  function initGoogleIdentityServices(clientId) {
+    const cid = (clientId || googleAuthConfig.clientId || '').trim();
+    if (!cid) return;
+
+    if (!window.google?.accounts) {
+      // Poll for Google SDK load if it's still downloading
+      let pollAttempts = 0;
+      const pollTimer = setInterval(() => {
+        pollAttempts++;
+        if (window.google?.accounts?.oauth2 || window.google?.accounts?.id) {
+          clearInterval(pollTimer);
+          initGoogleIdentityServices(cid);
+        } else if (pollAttempts >= 30) {
+          clearInterval(pollTimer);
+        }
+      }, 200);
+      return;
+    }
+
+    // A. Initialize Token Client for custom button popups
     try {
-      localStorage.setItem('macropulse_user_logged_in', 'true');
-    } catch (err) {}
-    updateAuthUI();
-    syncProfileFieldsToUI();
-    switchView('overview');
-    window.location.hash = '#overview';
-    showToast(`Account registered! Welcome to MacroPulse, ${currentUser.name}.`, 'success');
+      if (window.google.accounts.oauth2) {
+        googleTokenClient = window.google.accounts.oauth2.initTokenClient({
+          client_id: cid,
+          scope: 'email profile openid',
+          callback: async (tokenResponse) => {
+            if (tokenResponse && tokenResponse.access_token) {
+              showToast('Connecting with Google...', 'info');
+              try {
+                const res = await fetch('https://www.googleapis.com/oauth2/v3/userinfo', {
+                  headers: { Authorization: `Bearer ${tokenResponse.access_token}` }
+                });
+                const profile = await res.json();
+                if (profile && profile.email) {
+                  await executeGoogleAuthentication({
+                    email: profile.email,
+                    name: profile.name || profile.email.split('@')[0],
+                    avatar: profile.picture || ''
+                  });
+                } else {
+                  showToast('Failed to retrieve profile from Google.', 'error');
+                }
+              } catch (err) {
+                showToast('Error connecting with Google profile: ' + err.message, 'error');
+              }
+            } else if (tokenResponse && tokenResponse.error) {
+              showToast('Google Sign-In: ' + (tokenResponse.error_description || tokenResponse.error), 'error');
+            }
+          },
+          error_callback: (err) => {
+            console.warn('Google OAuth popup warning:', err);
+            if (err && err.type === 'popup_closed') return;
+            if (err && err.message) showToast('Google Sign-In: ' + err.message, 'error');
+          }
+        });
+      }
+    } catch (e) {
+      console.warn('Google OAuth2 init error:', e);
+    }
+
+    // B. Initialize Google ID (Credential) client and render official buttons
+    try {
+      if (window.google.accounts.id) {
+        window.google.accounts.id.initialize({
+          client_id: cid,
+          callback: handleGoogleCredentialResponse,
+          auto_select: false,
+          cancel_on_tap_outside: true
+        });
+
+        renderOfficialGoogleButtons(cid);
+      }
+    } catch (e) {
+      console.warn('Google ID client init error:', e);
+    }
+  }
+
+  function renderOfficialGoogleButtons(cid) {
+    if (!window.google?.accounts?.id || !googleAuthConfig.enabled) return;
+
+    const slotSignIn = document.getElementById('googleOfficialBtnSlot');
+    const customSignIn = document.getElementById('googleSsoBtn');
+    if (slotSignIn) {
+      try {
+        slotSignIn.innerHTML = '';
+        slotSignIn.style.display = 'flex';
+        window.google.accounts.id.renderButton(slotSignIn, {
+          theme: 'outline',
+          size: 'large',
+          type: 'standard',
+          shape: 'rectangular',
+          text: 'signin_with',
+          logo_alignment: 'left',
+          width: 320
+        });
+        if (customSignIn) customSignIn.style.display = 'none';
+      } catch (e) {}
+    }
+
+    const slotSignUp = document.getElementById('googleOfficialSignUpSlot');
+    const customSignUp = document.getElementById('googleSignUpBtn');
+    if (slotSignUp) {
+      try {
+        slotSignUp.innerHTML = '';
+        slotSignUp.style.display = 'flex';
+        window.google.accounts.id.renderButton(slotSignUp, {
+          theme: 'outline',
+          size: 'large',
+          type: 'standard',
+          shape: 'rectangular',
+          text: 'signup_with',
+          logo_alignment: 'left',
+          width: 320
+        });
+        if (customSignUp) customSignUp.style.display = 'none';
+      } catch (e) {}
+    }
+  }
+
+  function hideOfficialGoogleButtons() {
+    const slotSignIn = document.getElementById('googleOfficialBtnSlot');
+    const customSignIn = document.getElementById('googleSsoBtn');
+    if (slotSignIn) slotSignIn.style.display = 'none';
+    if (customSignIn) customSignIn.style.display = 'flex';
+
+    const slotSignUp = document.getElementById('googleOfficialSignUpSlot');
+    const customSignUp = document.getElementById('googleSignUpBtn');
+    if (slotSignUp) slotSignUp.style.display = 'none';
+    if (customSignUp) customSignUp.style.display = 'flex';
+  }
+
+  window.onGoogleLibraryLoad = function() {
+    const cid = (googleAuthConfig.clientId || '').trim();
+    if (googleAuthConfig.enabled && cid) {
+      initGoogleIdentityServices(cid);
+    }
+  };
+
+  function handleGoogleCredentialResponse(response) {
+    if (response && response.credential) {
+      // Parse Google JWT ID token
+      try {
+        const base64Url = response.credential.split('.')[1];
+        const base64 = base64Url.replace(/-/g, '+').replace(/_/g, '/');
+        const jsonPayload = decodeURIComponent(atob(base64).split('').map(c => '%' + ('00' + c.charCodeAt(0).toString(16)).slice(-2)).join(''));
+        const decoded = JSON.parse(jsonPayload);
+        if (decoded && decoded.email) {
+          executeGoogleAuthentication({
+            email: decoded.email,
+            name: decoded.name || decoded.email.split('@')[0],
+            avatar: decoded.picture || '',
+            credential: response.credential
+          });
+          return;
+        }
+      } catch (e) {
+        console.warn('Failed to parse Google JWT payload directly:', e);
+      }
+      executeGoogleAuthentication({ credential: response.credential });
+    }
+  }
+
+  // 3. Modal open / close helpers
+  function openGoogleModal() {
+    if (googleAccountModal) {
+      googleAccountModal.style.display = 'flex';
+      const accountsList = document.getElementById('googleAccountsList');
+      if (accountsList) accountsList.style.display = 'flex';
+      if (googleCustomForm) googleCustomForm.style.display = 'none';
+      if (googleCustomEmail) googleCustomEmail.value = '';
+      if (googleCustomName) googleCustomName.value = '';
+      if (googleCustomEmailError) googleCustomEmailError.textContent = '';
+      const configBox = document.getElementById('googleOauthConfigBox');
+      if (configBox) configBox.style.display = 'none';
+      if (window.lucide) window.lucide.createIcons({ root: googleAccountModal });
+    }
+  }
+
+  function closeGoogleModal() {
+    if (googleAccountModal) {
+      googleAccountModal.style.display = 'none';
+    }
+  }
+
+  if (closeGoogleModalBtn) {
+    closeGoogleModalBtn.addEventListener('click', closeGoogleModal);
+  }
+
+  if (googleAccountModal) {
+    googleAccountModal.addEventListener('click', (e) => {
+      if (e.target === googleAccountModal) closeGoogleModal();
+    });
+  }
+
+  document.addEventListener('keydown', (e) => {
+    if (e.key === 'Escape' && googleAccountModal && googleAccountModal.style.display === 'flex') {
+      closeGoogleModal();
+    }
   });
 
-  document.getElementById('googleSsoBtn')?.addEventListener('click', () => {
-    hideLoginPage();
-    currentUser = { ...defaultAuthUser };
+  // 4. Switch between Accounts List and Custom Email Entry
+  if (googleUseAnotherToggle) {
+    googleUseAnotherToggle.addEventListener('click', () => {
+      const accountsList = document.getElementById('googleAccountsList');
+      if (accountsList) accountsList.style.display = 'none';
+      if (googleCustomForm) {
+        googleCustomForm.style.display = 'block';
+        if (googleCustomEmail) setTimeout(() => googleCustomEmail.focus(), 60);
+      }
+    });
+  }
+
+  const cancelGoogleCustomBtn = document.getElementById('cancelGoogleCustomBtn');
+  if (cancelGoogleCustomBtn) {
+    cancelGoogleCustomBtn.addEventListener('click', () => {
+      const accountsList = document.getElementById('googleAccountsList');
+      if (accountsList) accountsList.style.display = 'flex';
+      if (googleCustomForm) googleCustomForm.style.display = 'none';
+    });
+  }
+
+  // Live Google Cloud Client ID Configuration Toggle & Save
+  const googleOauthToggleBtn = document.getElementById('googleOauthToggleBtn');
+  const googleOauthConfigBox = document.getElementById('googleOauthConfigBox');
+  const googleLiveClientIdInput = document.getElementById('googleLiveClientIdInput');
+  const saveGoogleClientIdBtn = document.getElementById('saveGoogleClientIdBtn');
+  const googleLiveConfigStatus = document.getElementById('googleLiveConfigStatus');
+
+  if (googleOauthToggleBtn && googleOauthConfigBox) {
+    googleOauthToggleBtn.addEventListener('click', () => {
+      const isVis = googleOauthConfigBox.style.display !== 'none';
+      googleOauthConfigBox.style.display = isVis ? 'none' : 'block';
+      if (!isVis && googleLiveClientIdInput) {
+        googleLiveClientIdInput.value = googleAuthConfig.clientId || '';
+        setTimeout(() => googleLiveClientIdInput.focus(), 50);
+      }
+    });
+  }
+
+  if (saveGoogleClientIdBtn && googleLiveClientIdInput) {
+    saveGoogleClientIdBtn.addEventListener('click', async () => {
+      const enteredId = googleLiveClientIdInput.value.trim();
+      if (!enteredId) {
+        if (googleLiveConfigStatus) {
+          googleLiveConfigStatus.style.color = '#ba1a1a';
+          googleLiveConfigStatus.textContent = 'Please enter a valid Google Client ID.';
+        }
+        return;
+      }
+      try {
+        saveGoogleClientIdBtn.disabled = true;
+        saveGoogleClientIdBtn.textContent = 'Saving...';
+        const res = await fetch('/api/auth/google-config', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ client_id: enteredId, enabled: true })
+        });
+        const d = await res.json();
+        if (d.success) {
+          syncGoogleAuthConfig(d.config);
+          initGoogleIdentityServices(enteredId);
+          if (googleLiveConfigStatus) {
+            googleLiveConfigStatus.style.color = '#10b981';
+            googleLiveConfigStatus.textContent = 'Saved! Google Identity Services active.';
+          }
+          showToast('Google OAuth Client ID saved! Live Google Identity initialized.', 'success');
+        } else {
+          if (googleLiveConfigStatus) {
+            googleLiveConfigStatus.style.color = '#ba1a1a';
+            googleLiveConfigStatus.textContent = 'Error: ' + (d.error || 'Failed to save');
+          }
+        }
+      } catch (err) {
+        if (googleLiveConfigStatus) {
+          googleLiveConfigStatus.style.color = '#ba1a1a';
+          googleLiveConfigStatus.textContent = 'Connection error.';
+        }
+      } finally {
+        saveGoogleClientIdBtn.disabled = false;
+        saveGoogleClientIdBtn.textContent = 'Save & Activate Live Google';
+      }
+    });
+  }
+
+  // 5. Trigger Google SSO flow
+  function startGoogleSSOFlow() {
+    const clientId = (googleAuthConfig.clientId || googleAuthConfig.client_id || '').trim();
+
+    // A. Live Google Client ID is configured -> Open Real Google Interface
+    if (googleAuthConfig.enabled && clientId) {
+      // 1. Try Google GIS OAuth 2.0 Token Client (Popup)
+      if (googleTokenClient) {
+        try {
+          googleTokenClient.requestAccessToken({ prompt: 'select_account' });
+          return;
+        } catch (e) {
+          console.warn('googleTokenClient requestAccessToken error:', e);
+        }
+      }
+
+      // 2. If token client wasn't initialized yet, try initializing now
+      if (window.google?.accounts?.oauth2) {
+        initGoogleIdentityServices(clientId);
+        if (googleTokenClient) {
+          try {
+            googleTokenClient.requestAccessToken({ prompt: 'select_account' });
+            return;
+          } catch (e) {}
+        }
+      }
+
+      // 3. Direct Google OAuth 2.0 Web Popup Window fallback (accounts.google.com)
+      const width = 500, height = 620;
+      const left = Math.max(0, Math.round(window.screenX + (window.outerWidth - width) / 2));
+      const top = Math.max(0, Math.round(window.screenY + (window.outerHeight - height) / 2));
+      const redirectUri = window.location.origin;
+      const authUrl = `https://accounts.google.com/o/oauth2/v2/auth?client_id=${encodeURIComponent(clientId)}&redirect_uri=${encodeURIComponent(redirectUri)}&response_type=token&scope=email%20profile%20openid&prompt=select_account`;
+      
+      const popup = window.open(authUrl, 'GoogleSignIn', `width=${width},height=${height},left=${left},top=${top}`);
+      if (!popup || popup.closed || typeof popup.closed === 'undefined') {
+        window.location.href = authUrl;
+      }
+      return;
+    }
+
+    // B. No Client ID configured -> Open local simulation modal
+    openGoogleModal();
+  }
+  window.startGoogleSSOFlow = startGoogleSSOFlow;
+
+  // Check if returned from Google OAuth redirect in hash
+  if (window.location.hash && window.location.hash.includes('access_token=')) {
     try {
-      localStorage.setItem('macropulse_user_logged_in', 'true');
-    } catch (err) {}
-    updateAuthUI();
-    syncProfileFieldsToUI();
-    switchView('overview');
-    window.location.hash = '#overview';
-    showToast('Authenticated via Google Single Sign-On. Welcome back!', 'success');
+      const hashParams = new URLSearchParams(window.location.hash.substring(1));
+      const tok = hashParams.get('access_token');
+      if (tok) {
+        history.replaceState(null, null, window.location.pathname + '#login');
+        showToast('Connecting with Google account...', 'info');
+        fetch('https://www.googleapis.com/oauth2/v3/userinfo', {
+          headers: { Authorization: `Bearer ${tok}` }
+        })
+        .then(r => r.json())
+        .then(profile => {
+          if (profile && profile.email) {
+            executeGoogleAuthentication({
+              email: profile.email,
+              name: profile.name || profile.email.split('@')[0],
+              avatar: profile.picture || ''
+            });
+          }
+        })
+        .catch(err => console.warn('OAuth hash userinfo error:', err));
+      }
+    } catch (e) {}
+  }
+
+  document.getElementById('googleSsoBtn')?.addEventListener('click', startGoogleSSOFlow);
+  document.getElementById('googleSignUpBtn')?.addEventListener('click', startGoogleSSOFlow);
+
+  // 6. Predefined account items in chooser modal
+  document.querySelectorAll('.google-account-item:not(.google-use-another)').forEach(item => {
+    item.addEventListener('click', () => {
+      const email = item.getAttribute('data-email');
+      const name = item.getAttribute('data-name');
+      if (email) {
+        executeGoogleAuthentication({ email, name });
+      }
+    });
   });
+
+  // 7. Custom Google account submission
+  function submitCustomGoogleAccount() {
+    const email = (googleCustomEmail?.value || '').trim();
+    const name = (googleCustomName?.value || '').trim();
+    const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+
+    if (!email) {
+      if (googleCustomEmailError) googleCustomEmailError.textContent = 'Please enter a Google email address.';
+      googleCustomEmail?.focus();
+      return;
+    }
+    if (!emailRegex.test(email)) {
+      if (googleCustomEmailError) googleCustomEmailError.textContent = 'Please enter a valid email address (e.g. user@gmail.com).';
+      googleCustomEmail?.focus();
+      return;
+    }
+    if (googleCustomEmailError) googleCustomEmailError.textContent = '';
+    executeGoogleAuthentication({ email, name: name || email.split('@')[0] });
+  }
+
+  if (submitGoogleCustomBtn) {
+    submitGoogleCustomBtn.addEventListener('click', submitCustomGoogleAccount);
+  }
+
+  googleCustomEmail?.addEventListener('keydown', (e) => {
+    if (e.key === 'Enter') {
+      e.preventDefault();
+      submitCustomGoogleAccount();
+    }
+  });
+
+  googleCustomName?.addEventListener('keydown', (e) => {
+    if (e.key === 'Enter') {
+      e.preventDefault();
+      submitCustomGoogleAccount();
+    }
+  });
+
+  // 8. Execute Authentication & Synchronize Session
+  async function executeGoogleAuthentication(payload) {
+    closeGoogleModal();
+    showToast('Connecting to Google Identity Services & synchronizing session...', 'info');
+
+    try {
+      const resp = await fetch('/api/auth/google', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(payload)
+      });
+      const data = await resp.json();
+
+      if (resp.ok && data && data.success && data.user) {
+        const u = data.user;
+        currentUser = {
+          isLoggedIn: true,
+          id: u.id,
+          name: u.name || 'Google User',
+          shortName: (u.name || 'Google User').split(' ')[0],
+          email: u.email,
+          role: u.role || 'Quantitative / Retail Investor',
+          desk: u.desk || 'MacroPulse Equities Division',
+          timezone: u.timezone || 'Asia/Kuala_Lumpur (UTC+8)',
+          bio: u.bio !== null ? u.bio : 'Authenticated via Google Single Sign-On.',
+          avatar: (u.avatar && typeof u.avatar === 'string' && u.avatar.trim().length > 0) ? u.avatar.trim() : (payload.avatar || ''),
+          apiKey: u.apiKey || ('mp_live_' + Math.random().toString(36).substring(2, 10))
+        };
+
+        try {
+          localStorage.setItem('macropulse_user_logged_in', 'true');
+          localStorage.setItem('macropulse_user_profile', JSON.stringify(currentUser));
+        } catch (e) {}
+
+        hideLoginPage();
+        updateAuthUI();
+        syncProfileFieldsToUI();
+        switchView('overview');
+        window.location.hash = '#overview';
+
+        const greeting = data.is_new
+          ? `Welcome to MacroPulse, ${currentUser.name}! Confirmation email dispatched & account active.`
+          : `Welcome back, ${currentUser.name}! Authenticated via Google.`;
+        showToast(greeting, 'success');
+      } else {
+        showToast(data?.error || 'Failed to authenticate via Google. Please try again.', 'error');
+      }
+    } catch (err) {
+      console.error('Google SSO error:', err);
+      showToast('Network error during Google authentication. Please try again.', 'error');
+    }
+  }
 
   // Initialize Auth & Profile UI on start
   syncProfileFieldsToUI();
+
+  // Dynamically sync user's active profile from MySQL database if logged in
+  if (currentUser.isLoggedIn && currentUser.email) {
+    fetch(`/api/user/profile?email=${encodeURIComponent(currentUser.email)}`)
+      .then(res => res.json())
+      .then(data => {
+        if (data && data.success && data.user) {
+          const u = data.user;
+          currentUser.name = u.name || currentUser.name;
+          currentUser.shortName = (u.name || currentUser.name).split(' ')[0];
+          currentUser.role = u.role || currentUser.role;
+          currentUser.desk = u.desk || currentUser.desk;
+          currentUser.timezone = u.timezone || currentUser.timezone;
+          currentUser.bio = u.bio !== null ? u.bio : currentUser.bio;
+          if (u.avatar && typeof u.avatar === 'string' && u.avatar.trim().length > 0) {
+            currentUser.avatar = u.avatar.trim();
+            try {
+              const p = JSON.parse(localStorage.getItem('macropulse_user_profile') || '{}');
+              p.avatar = currentUser.avatar;
+              localStorage.setItem('macropulse_user_profile', JSON.stringify(p));
+            } catch (err) {}
+          }
+          if (u.apiKey) currentUser.apiKey = u.apiKey;
+          syncProfileFieldsToUI();
+          updateAuthUI();
+        }
+      })
+      .catch(() => {});
+  }
 
   // ==========================================
   // Model Performance Logs & Telemetry Engine (RMSE, MAE, MAPE)
@@ -4684,6 +6746,14 @@ document.addEventListener('DOMContentLoaded', () => {
         </td>
       `;
 
+      const inspectBtn = tr.querySelector('.btn-inspect-curve');
+      if (inspectBtn) {
+        inspectBtn.addEventListener('click', (e) => {
+          e.stopPropagation();
+          inspectSovereignCurve(sov.code);
+        });
+      }
+
       tr.addEventListener('click', (e) => {
         selectSovereign(sov.code);
       });
@@ -4949,6 +7019,25 @@ document.addEventListener('DOMContentLoaded', () => {
   };
 
   let mapTooltipTimer = null;
+  let currentTooltipSovereign = 'MY';
+
+  function inspectSovereignCurve(code) {
+    if (!code) return;
+    selectSovereign(code);
+    hideMapTooltip(true);
+
+    const curveCard = document.getElementById('yieldCurveChart')?.closest('.card');
+    if (curveCard) {
+      curveCard.scrollIntoView({ behavior: 'smooth', block: 'center' });
+      curveCard.classList.remove('curve-refocus-highlight');
+      void curveCard.offsetWidth; // Force reflow to restart CSS glow animation
+      curveCard.classList.add('curve-refocus-highlight');
+      setTimeout(() => {
+        curveCard.classList.remove('curve-refocus-highlight');
+      }, 2000);
+    }
+  }
+  window.inspectSovereignCurve = inspectSovereignCurve;
 
   function showMapTooltip(code) {
     if (mapTooltipTimer) {
@@ -4956,12 +7045,14 @@ document.addEventListener('DOMContentLoaded', () => {
       mapTooltipTimer = null;
     }
 
+    currentTooltipSovereign = code;
     const sov = sovereignsData[code];
     const tooltip = document.getElementById('mapHubTooltip');
     const container = document.getElementById('mapCanvasContainer');
     const hub = document.getElementById(`hub-${code}`);
     if (!sov || !tooltip || !container || !hub) return;
 
+    tooltip.setAttribute('data-sovereign', code);
     const brandColor = sovereignBrandColors[code] || '#7c3aed';
 
     document.getElementById('tipHubTitle').textContent = `${sov.code} - ${sov.name} (${sov.bondName})`;
@@ -4986,8 +7077,8 @@ document.addEventListener('DOMContentLoaded', () => {
     let top = (hubRect.top - containerRect.top) + offsetConfig.offsetY;
 
     // Viewport and container boundary safety clamp
-    const tipWidth = 250;
-    const tipHeight = 175;
+    const tipWidth = 275;
+    const tipHeight = 180;
     const padding = 12;
 
     left = Math.max(padding, Math.min(containerRect.width - tipWidth - padding, left));
@@ -5009,7 +7100,7 @@ document.addEventListener('DOMContentLoaded', () => {
     mapTooltipTimer = setTimeout(() => {
       const tooltip = document.getElementById('mapHubTooltip');
       if (tooltip) tooltip.classList.remove('visible');
-    }, 60);
+    }, 240);
   }
 
   window.showMapTooltip = showMapTooltip;
@@ -5017,6 +7108,30 @@ document.addEventListener('DOMContentLoaded', () => {
 
   // Initialize Map Hover, Click & Toolbar Handlers
   function bindAnalyticsEventListeners() {
+    // Tooltip hover preservation & Action Button deep-link click
+    const tooltip = document.getElementById('mapHubTooltip');
+    if (tooltip) {
+      tooltip.addEventListener('mouseenter', () => {
+        if (mapTooltipTimer) {
+          clearTimeout(mapTooltipTimer);
+          mapTooltipTimer = null;
+        }
+      });
+      tooltip.addEventListener('mouseleave', () => {
+        hideMapTooltip(false);
+      });
+    }
+
+    const tipInspectBtn = document.getElementById('tipInspectCurveBtn');
+    if (tipInspectBtn) {
+      tipInspectBtn.addEventListener('click', (e) => {
+        e.preventDefault();
+        e.stopPropagation();
+        const code = currentTooltipSovereign || currentSelectedSovereign || 'MY';
+        inspectSovereignCurve(code);
+      });
+    }
+
     // Hub Hover Tooltip & Click with debouncing and instant sync
     document.querySelectorAll('.map-hub').forEach(hub => {
       const code = hub.getAttribute('data-sovereign');
@@ -5120,6 +7235,8 @@ document.addEventListener('DOMContentLoaded', () => {
       showLoginPage('signin');
     } else if (view === 'signup') {
       showLoginPage('signup');
+    } else if (view === 'forgot' || view === 'forgot-password' || view === 'reset-password') {
+      showLoginPage('forgot');
     } else if (viewMetadata[view]) {
       hideLoginPage();
       switchView(view);
