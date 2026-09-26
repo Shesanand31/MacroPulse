@@ -1,0 +1,235 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>MacroPulse Database ER Diagram</title>
+  <script src="https://cdn.jsdelivr.net/npm/mermaid@10/dist/mermaid.min.js"></script>
+  <style>
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+    body {
+      background-color: #0b0f19;
+      color: #e2e8f0;
+      font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+      padding: 30px;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+    }
+    header {
+      text-align: center;
+      margin-bottom: 25px;
+    }
+    h1 {
+      font-size: 26px;
+      color: #38bdf8;
+      margin-bottom: 8px;
+    }
+    p {
+      color: #94a3b8;
+      font-size: 14px;
+    }
+    .toolbar {
+      margin-bottom: 20px;
+      display: flex;
+      gap: 12px;
+    }
+    button {
+      background: #0284c7;
+      color: #ffffff;
+      border: none;
+      padding: 8px 16px;
+      border-radius: 6px;
+      font-size: 13px;
+      font-weight: 600;
+      cursor: pointer;
+      transition: background 0.2s;
+    }
+    button:hover { background: #0369a1; }
+    .card {
+      background: #111827;
+      border: 1px solid #1f2937;
+      border-radius: 12px;
+      padding: 24px;
+      max-width: 95vw;
+      overflow-x: auto;
+      box-shadow: 0 10px 25px rgba(0,0,0,0.5);
+    }
+    .mermaid {
+      display: flex;
+      justify-content: center;
+    }
+  </style>
+</head>
+<body>
+  <header>
+    <h1>📈 MacroPulse Terminal — Relational ER Diagram</h1>
+    <p>Database: <code>macropulse_db</code> (MySQL 8.0+ / MariaDB) | 11 Normalized Entities & Foreign Key Relationships</p>
+  </header>
+  <div class="toolbar">
+    <button onclick="window.print()">🖨️ Print / Save as PDF</button>
+  </div>
+  <div class="card">
+    <pre class="mermaid">
+erDiagram
+    USERS ||--o{ USER_SESSIONS : "initiates"
+    USERS ||--o{ PASSWORD_RESETS : "requests"
+    USERS ||--|| USER_WORKSPACE_SETTINGS : "customizes"
+    USERS ||--|| USER_NOTIFICATION_RULES : "defines"
+    USERS ||--o{ USER_WATCHLISTS : "bookmarks"
+    STOCKS ||--o{ USER_WATCHLISTS : "cataloged_in"
+    STOCKS ||--o{ MODEL_RUN_LOGS : "benchmarked_on"
+    MODEL_METADATA ||--o{ MODEL_RUN_LOGS : "executes"
+    MACRO_INDICATORS ||--o{ MACRO_OBSERVATIONS : "records"
+
+    USERS {
+        int id PK "auto_increment"
+        varchar email UK "unique login"
+        varchar password_hash "PBKDF2/SHA-256"
+        varchar full_name "Analyst full name"
+        varchar role_title "Designation"
+        varchar department "Divisional affiliation"
+        varchar timezone "e.g. UTC+8"
+        text bio "Profile biography"
+        mediumtext avatar_url "Base64 / Image URI"
+        varchar api_key UK "Unique Terminal API Key"
+        tinyint two_factor_enabled "2FA flag"
+        tinyint terms_accepted "Compliance flag"
+        tinyint is_active "Account state"
+        timestamp last_login_at "Audit login"
+        timestamp created_at "Registration stamp"
+        timestamp updated_at "Update stamp"
+    }
+
+    USER_SESSIONS {
+        varchar session_id PK "mp_live_... / UUID"
+        int user_id FK "References USERS(id)"
+        varchar ip_address "Client IP"
+        varchar user_agent "Browser / OS header"
+        varchar location "Geo-location string"
+        tinyint is_active "Active token state"
+        timestamp created_at "Session issue time"
+        timestamp last_active_at "Heartbeat stamp"
+    }
+
+    PASSWORD_RESETS {
+        bigint id PK "auto_increment"
+        int user_id FK "References USERS(id)"
+        varchar email "User recovery email"
+        varchar reset_code "6-digit OTP code"
+        varchar token_hash "Cryptographic reset token"
+        timestamp expires_at "15-minute expiration"
+        tinyint is_used "One-time flag"
+        timestamp created_at "Issue timestamp"
+    }
+
+    LOGIN_ATTEMPTS {
+        bigint id PK "auto_increment"
+        varchar email "Attempted user email"
+        varchar ip_address "Remote IP address"
+        tinyint is_successful "1=Success, 0=Failed"
+        timestamp attempted_at "Audit timestamp"
+    }
+
+    USER_WORKSPACE_SETTINGS {
+        int id PK "auto_increment"
+        int user_id FK "References USERS(id), UNIQUE"
+        varchar default_landing_view "overview, trading, etc."
+        varchar benchmark_index "e.g. ^KLSE, ^GSPC"
+        varchar lookback_horizon "1mo, 3mo, 1y, 5y"
+        varchar focus_sector "all, Financials, Tech"
+        varchar reporting_currency "MYR, USD, EUR, SGD"
+        int polling_rate_seconds "Refresh cadence (15s)"
+        tinyint audio_chimes_enabled "Web Audio sound flag"
+        timestamp updated_at "Settings update stamp"
+    }
+
+    USER_NOTIFICATION_RULES {
+        int id PK "auto_increment"
+        int user_id FK "References USERS(id), UNIQUE"
+        tinyint notify_opr "OPR policy shift alerts"
+        tinyint notify_cpi "Headline CPI alerts"
+        tinyint notify_stocks "Watchlist volatility alerts"
+        tinyint notify_inflow "Foreign capital flow alerts"
+        timestamp updated_at "Rule update stamp"
+    }
+
+    STOCKS {
+        varchar symbol PK "e.g. 1155.KL, NVDA"
+        varchar name "Full company legal name"
+        varchar exchange "KLSE, NASDAQ, NYSE"
+        varchar country "MY, US, TW"
+        varchar sector "Financials, Tech, Energy"
+        tinyint is_active "Trading status"
+        timestamp created_at "Catalog entry stamp"
+    }
+
+    USER_WATCHLISTS {
+        int id PK "auto_increment"
+        int user_id FK "References USERS(id)"
+        varchar stock_symbol FK "References STOCKS(symbol)"
+        decimal target_buy_price "Target entry limit"
+        decimal target_sell_price "Target exit limit"
+        varchar notes "Analyst investment thesis"
+        timestamp added_at "Creation timestamp"
+    }
+
+    MACRO_INDICATORS {
+        varchar indicator_id PK "e.g. BNM_OPR, FEDFUNDS"
+        varchar name "Economic indicator name"
+        varchar unit "%, Index, Billions USD"
+        varchar frequency "Daily, Monthly, Quarterly"
+        category varchar "Monetary, Inflation, Yield"
+        varchar target_benchmark "Policy band / target"
+        timestamp created_at "Registry stamp"
+    }
+
+    MACRO_OBSERVATIONS {
+        bigint id PK "auto_increment"
+        varchar indicator_id FK "References MACRO_INDICATORS(id)"
+        date observation_date "Period cutoff date"
+        decimal observation_value "Recorded quantitative metric"
+        timestamp created_at "Ingestion stamp"
+    }
+
+    MODEL_METADATA {
+        varchar model_id PK "lstm, transformer, etc."
+        varchar model_name "Algorithm display title"
+        varchar description "Architecture summary"
+        varchar algorithm "BiLSTM, PatchTST, XGBoost"
+        varchar framework "PyTorch, Scikit-Learn"
+        timestamp created_at "Registration stamp"
+    }
+
+    MODEL_RUN_LOGS {
+        bigint id PK "auto_increment"
+        varchar model_id FK "References MODEL_METADATA(id)"
+        varchar target_symbol FK "References STOCKS(symbol)"
+        enum run_type "inference, retrain, backtest"
+        decimal rmse "Root Mean Squared Error"
+        decimal mae "Mean Absolute Error"
+        decimal mape "Mean Absolute % Error"
+        decimal accuracy_score "Overall fit accuracy %"
+        decimal direction_accuracy "Hit Rate % (Up/Down)"
+        decimal runtime_seconds "Inference latency (s)"
+        varchar notes "Execution details"
+        timestamp created_at "Execution timestamp"
+    }
+    </pre>
+  </div>
+  <script>
+    mermaid.initialize({
+      startOnLoad: true,
+      theme: 'dark',
+      themeVariables: {
+        darkMode: true,
+        background: '#111827',
+        primaryColor: '#1e293b',
+        primaryBorderColor: '#38bdf8',
+        primaryTextColor: '#f8fafc',
+        lineColor: '#0ea5e9'
+      }
+    });
+  </script>
+</body>
+</html>
