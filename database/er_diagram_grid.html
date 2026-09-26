@@ -1,0 +1,332 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>MacroPulse Database ER Diagram — Grid View</title>
+  <style>
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+    body {
+      background-color: #0b0c10;
+      background-image: 
+        linear-gradient(to right, #1a1c23 1px, transparent 1px),
+        linear-gradient(to bottom, #1a1c23 1px, transparent 1px);
+      background-size: 24px 24px;
+      color: #ffffff;
+      font-family: Consolas, "Courier New", monospace, -apple-system, sans-serif;
+      min-height: 100vh;
+      padding: 30px;
+      overflow-x: auto;
+    }
+    
+    .toolbar {
+      position: fixed;
+      top: 15px;
+      right: 25px;
+      display: flex;
+      gap: 12px;
+      z-index: 100;
+      background: rgba(18, 20, 29, 0.85);
+      backdrop-filter: blur(8px);
+      padding: 8px 16px;
+      border-radius: 8px;
+      border: 1px solid #2e3440;
+    }
+    
+    button {
+      background: #2563eb;
+      color: #fff;
+      border: none;
+      padding: 8px 16px;
+      border-radius: 6px;
+      font-family: inherit;
+      font-size: 13px;
+      font-weight: 600;
+      cursor: pointer;
+      display: flex;
+      align-items: center;
+      gap: 6px;
+      transition: background 0.15s ease;
+    }
+    button:hover { background: #1d4ed8; }
+    
+    .canvas-container {
+      position: relative;
+      width: 1080px;
+      height: 820px;
+      margin: 40px auto;
+    }
+    
+    /* Database Table Box Styles matching user screenshot */
+    .db-table {
+      position: absolute;
+      border: 1.5px solid #d1d5db;
+      background: #0f1117;
+      border-radius: 2px;
+      box-shadow: 0 12px 30px rgba(0,0,0,0.7);
+      user-select: none;
+    }
+    
+    .table-header {
+      padding: 7px 12px;
+      font-weight: 700;
+      font-size: 13.5px;
+      text-align: center;
+      position: relative;
+      border-bottom: 1.5px solid #d1d5db;
+      letter-spacing: 0.3px;
+      background: #151822;
+    }
+    
+    .collapse-icon {
+      position: absolute;
+      left: 8px;
+      top: 9px;
+      width: 9px;
+      height: 9px;
+      border: 1px solid #9ca3af;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-size: 9px;
+      line-height: 1;
+      color: #9ca3af;
+    }
+    .collapse-icon::before {
+      content: "-";
+      position: relative;
+      top: -1px;
+    }
+    
+    .table-body {
+      display: flex;
+      font-size: 12.5px;
+    }
+    
+    .key-col {
+      border-right: 1.5px solid #d1d5db;
+      padding: 6px 8px;
+      min-width: 44px;
+      font-weight: 700;
+      color: #f3f4f6;
+    }
+    .key-col div {
+      padding: 3px 0;
+    }
+    
+    .attr-col {
+      padding: 6px 12px;
+      flex-grow: 1;
+      white-space: nowrap;
+    }
+    .attr-col div {
+      padding: 3px 0;
+    }
+    
+    .attr-col .pk-row {
+      border-bottom: 1.5px solid #d1d5db;
+      margin: -6px -12px 6px -12px;
+      padding: 6px 12px 6px 12px;
+      text-decoration: underline;
+      font-weight: 700;
+    }
+    
+    .key-col .pk-box {
+      border-bottom: 1.5px solid #d1d5db;
+      margin: -6px -8px 6px -8px;
+      padding: 6px 8px 6px 8px;
+    }
+    
+    /* Layout placements */
+    #tbl-assets {
+      top: 60px;
+      left: 40px;
+      width: 380px;
+    }
+    
+    #tbl-prices {
+      top: 30px;
+      left: 540px;
+      width: 360px;
+    }
+    
+    #tbl-forecast {
+      top: 410px;
+      left: 40px;
+      width: 380px;
+    }
+    
+    #tbl-macro {
+      top: 410px;
+      left: 540px;
+      width: 390px;
+    }
+    
+    /* SVG Connector Overlay */
+    .connector-svg {
+      position: absolute;
+      top: 0;
+      left: 0;
+      width: 100%;
+      height: 100%;
+      pointer-events: none;
+      z-index: 10;
+    }
+    
+    .connector-line {
+      stroke: #9ca3af;
+      stroke-width: 1.5;
+      fill: none;
+    }
+    
+    @media print {
+      body {
+        background: #ffffff !important;
+        color: #000000 !important;
+      }
+      .toolbar { display: none; }
+      .db-table {
+        background: #ffffff !important;
+        color: #000000 !important;
+        border-color: #000000 !important;
+        box-shadow: none !important;
+      }
+      .table-header {
+        background: #f3f4f6 !important;
+        border-color: #000000 !important;
+      }
+      .key-col, .attr-col .pk-row, .key-col .pk-box {
+        border-color: #000000 !important;
+      }
+      .connector-line { stroke: #000000 !important; }
+    }
+  </style>
+</head>
+<body>
+
+  <div class="toolbar">
+    <button onclick="window.print()">🖨️ Export PDF / Print</button>
+  </div>
+
+  <div class="canvas-container">
+    <!-- SVG Connector Lines with Crow's Foot Notation -->
+    <svg class="connector-svg">
+      <!-- Line 1: Assets (right) to DailyStockPrices (left) -->
+      <!-- Assets Ticker_Symbol level (~165y) to DailyStockPrices Asset_ID level (~135y) -->
+      <path class="connector-line" d="M 420 162 L 480 162 L 480 138 L 540 138" />
+      <!-- One-end hash on Assets -->
+      <line x1="428" y1="156" x2="428" y2="168" class="connector-line" />
+      <!-- Crow's foot on DailyStockPrices -->
+      <line x1="540" y1="138" x2="528" y2="132" class="connector-line" />
+      <line x1="540" y1="138" x2="528" y2="144" class="connector-line" />
+      <line x1="532" y1="131" x2="532" y2="145" class="connector-line" />
+
+      <!-- Line 2: Assets (bottom) to Forecast_Logs (top) -->
+      <!-- Assets bottom (~245y, x=220) to Forecast_Logs top (~410y, x=220) -->
+      <path class="connector-line" d="M 220 250 L 220 410" />
+      <!-- One-end hash on Assets -->
+      <line x1="214" y1="260" x2="226" y2="260" class="connector-line" />
+      <!-- Crow's foot on Forecast_Logs -->
+      <line x1="220" y1="410" x2="214" y2="398" class="connector-line" />
+      <line x1="220" y1="410" x2="226" y2="398" class="connector-line" />
+      <line x1="213" y1="398" x2="227" y2="398" class="connector-line" />
+    </svg>
+
+    <!-- Table 1: Assets -->
+    <div class="db-table" id="tbl-assets">
+      <div class="table-header">
+        <span class="collapse-icon"></span>
+        Assets
+      </div>
+      <div class="table-body">
+        <div class="key-col">
+          <div class="pk-box">PK</div>
+        </div>
+        <div class="attr-col">
+          <div class="pk-row">Asset_ID int NOT NULL</div>
+          <div>Ticker_Symbol VARCHAR(100) NOT NULL</div>
+          <div>Company_Name VARCHAR(100)</div>
+          <div>Sector (100) VARCHAR</div>
+          <div>Currency VARCHAR(15) NOT NULL</div>
+        </div>
+      </div>
+    </div>
+
+    <!-- Table 2: DailyStockPrices -->
+    <div class="db-table" id="tbl-prices">
+      <div class="table-header">
+        <span class="collapse-icon"></span>
+        DailyStockPrices
+      </div>
+      <div class="table-body">
+        <div class="key-col">
+          <div class="pk-box">PK</div>
+          <div>FK1</div>
+        </div>
+        <div class="attr-col">
+          <div class="pk-row">Price_ID int NOT NULL</div>
+          <div>Asset_ID INTEGER NOT NULL</div>
+          <div>Trading_Date DATE</div>
+          <div>Open_Price DECIMAL (8,2)</div>
+          <div>High_Price DECIMAL(8,2)</div>
+          <div>Low_Price DECIMAL(8,2)</div>
+          <div>Close_Price DECIMAL(8,2)</div>
+          <div>Adj_Close DECIMAL(8,2)</div>
+          <div>Volume</div>
+        </div>
+      </div>
+    </div>
+
+    <!-- Table 3: Forecast_Logs -->
+    <div class="db-table" id="tbl-forecast">
+      <div class="table-header">
+        <span class="collapse-icon"></span>
+        Forecast_Logs
+      </div>
+      <div class="table-body">
+        <div class="key-col">
+          <div class="pk-box">PK</div>
+          <div>FK1</div>
+        </div>
+        <div class="attr-col">
+          <div class="pk-row">Log_ID int NOT NULL</div>
+          <div>Asset_ID INTEGER NOT NULL</div>
+          <div>Forecast_Date DATE</div>
+          <div>Model_Type VARCHAR(100)</div>
+          <div>Predicted_Close_Price DECIMAL(8,2)</div>
+          <div>Actual_Close_Price DECIMAL(8,2)</div>
+          <div>MAE_Score DECIMAL(8,2)</div>
+          <div>RMSE_Score DECIMAL(8,2)</div>
+          <div>MAPE_Score DECIMAL(8,2)</div>
+          <div>Prediction_Direction INTEGER</div>
+        </div>
+      </div>
+    </div>
+
+    <!-- Table 4: Macroeconomic_Indicators -->
+    <div class="db-table" id="tbl-macro">
+      <div class="table-header">
+        <span class="collapse-icon"></span>
+        Macroeconomic_Indicators
+      </div>
+      <div class="table-body">
+        <div class="key-col">
+          <div class="pk-box">PK</div>
+        </div>
+        <div class="attr-col">
+          <div class="pk-row">Indicator_ID int NOT NULL</div>
+          <div>Record_Date DATE</div>
+          <div>Frequency_Type VARCHAR(100)</div>
+          <div>Opr_Rate DECIMAL (8,2)</div>
+          <div>Inflation_Rate_Cpi DECIMAL (8,2)</div>
+          <div>GDP_Growth DECIMAL (8,2)</div>
+          <div>Unemployment_Rate DECIMAL (8,2)</div>
+          <div>Exchange_Rate_MYR DECIMAL (8,2)</div>
+        </div>
+      </div>
+    </div>
+
+  </div>
+
+</body>
+</html>

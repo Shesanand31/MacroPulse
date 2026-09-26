@@ -1,10 +1,173 @@
 # 📊 MacroPulse Relational Database — Entity-Relationship (ER) Diagram
 
-This document contains the complete Entity-Relationship (ER) specification for the **MacroPulse Institutional Terminal** (`macropulse_db`), covering all 11 relational tables, keys, cardinalities, and data dictionary.
+This document contains the complete Entity-Relationship (ER) specifications for the **MacroPulse Terminal**, featuring both the **Core Analytics Schema** (Assets, DailyStockPrices, Forecast_Logs, Macroeconomic_Indicators) and the **Full Institutional Schema**.
 
 ---
 
-## 📌 ER Diagram (Mermaid)
+## 📌 1. Core Analytics ER Diagram (Matching System Design)
+
+```mermaid
+erDiagram
+    Assets ||--o{ DailyStockPrices : "Asset_ID"
+    Assets ||--o{ Forecast_Logs : "Asset_ID"
+
+    Assets {
+        int Asset_ID PK "NOT NULL"
+        varchar Ticker_Symbol "VARCHAR(100) NOT NULL"
+        varchar Company_Name "VARCHAR(100)"
+        varchar Sector "VARCHAR(100)"
+        varchar Currency "VARCHAR(15) NOT NULL"
+    }
+
+    DailyStockPrices {
+        int Price_ID PK "NOT NULL"
+        int Asset_ID FK "INTEGER NOT NULL"
+        date Trading_Date "DATE"
+        decimal Open_Price "DECIMAL(8,2)"
+        decimal High_Price "DECIMAL(8,2)"
+        decimal Low_Price "DECIMAL(8,2)"
+        decimal Close_Price "DECIMAL(8,2)"
+        decimal Adj_Close "DECIMAL(8,2)"
+        bigint Volume "Volume"
+    }
+
+    Forecast_Logs {
+        int Log_ID PK "NOT NULL"
+        int Asset_ID FK "INTEGER NOT NULL"
+        date Forecast_Date "DATE"
+        varchar Model_Type "VARCHAR(100)"
+        decimal Predicted_Close_Price "DECIMAL(8,2)"
+        decimal Actual_Close_Price "DECIMAL(8,2)"
+        decimal MAE_Score "DECIMAL(8,2)"
+        decimal RMSE_Score "DECIMAL(8,2)"
+        decimal MAPE_Score "DECIMAL(8,2)"
+        int Prediction_Direction "INTEGER (1=Up, 0=Down)"
+    }
+
+    Macroeconomic_Indicators {
+        int Indicator_ID PK "NOT NULL"
+        date Record_Date "DATE"
+        varchar Frequency_Type "VARCHAR(100)"
+        decimal Opr_Rate "DECIMAL(8,2)"
+        decimal Inflation_Rate_Cpi "DECIMAL(8,2)"
+        decimal GDP_Growth "DECIMAL(8,2)"
+        decimal Unemployment_Rate "DECIMAL(8,2)"
+        decimal Exchange_Rate_MYR "DECIMAL(8,2)"
+    }
+```
+
+---
+
+## 🛠️ 2. DBML Code (for https://dbdiagram.io)
+
+Copy and paste this snippet directly into [dbdiagram.io](https://dbdiagram.io) to generate the exact dark-grid visual diagram with crow's foot connectors:
+
+```dbml
+Table Assets {
+  Asset_ID int [pk, not null]
+  Ticker_Symbol varchar(100) [not null]
+  Company_Name varchar(100)
+  Sector varchar(100)
+  Currency varchar(15) [not null]
+}
+
+Table DailyStockPrices {
+  Price_ID int [pk, not null]
+  Asset_ID integer [not null]
+  Trading_Date date
+  Open_Price decimal(8,2)
+  High_Price decimal(8,2)
+  Low_Price decimal(8,2)
+  Close_Price decimal(8,2)
+  Adj_Close decimal(8,2)
+  Volume bigint
+}
+
+Table Forecast_Logs {
+  Log_ID int [pk, not null]
+  Asset_ID integer [not null]
+  Forecast_Date date
+  Model_Type varchar(100)
+  Predicted_Close_Price decimal(8,2)
+  Actual_Close_Price decimal(8,2)
+  MAE_Score decimal(8,2)
+  RMSE_Score decimal(8,2)
+  MAPE_Score decimal(8,2)
+  Prediction_Direction integer
+}
+
+Table Macroeconomic_Indicators {
+  Indicator_ID int [pk, not null]
+  Record_Date date
+  Frequency_Type varchar(100)
+  Opr_Rate decimal(8,2)
+  Inflation_Rate_Cpi decimal(8,2)
+  GDP_Growth decimal(8,2)
+  Unemployment_Rate decimal(8,2)
+  Exchange_Rate_MYR decimal(8,2)
+}
+
+Ref: Assets.Asset_ID < DailyStockPrices.Asset_ID
+Ref: Assets.Asset_ID < Forecast_Logs.Asset_ID
+```
+
+---
+
+## 🗄️ 3. SQL DDL Table Creation Script
+
+```sql
+CREATE TABLE `Assets` (
+  `Asset_ID` INT AUTO_INCREMENT PRIMARY KEY,
+  `Ticker_Symbol` VARCHAR(100) NOT NULL UNIQUE,
+  `Company_Name` VARCHAR(100) NULL,
+  `Sector` VARCHAR(100) NULL,
+  `Currency` VARCHAR(15) NOT NULL DEFAULT 'MYR'
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
+
+CREATE TABLE `DailyStockPrices` (
+  `Price_ID` INT AUTO_INCREMENT PRIMARY KEY,
+  `Asset_ID` INT NOT NULL,
+  `Trading_Date` DATE NOT NULL,
+  `Open_Price` DECIMAL(8,2) NULL,
+  `High_Price` DECIMAL(8,2) NULL,
+  `Low_Price` DECIMAL(8,2) NULL,
+  `Close_Price` DECIMAL(8,2) NULL,
+  `Adj_Close` DECIMAL(8,2) NULL,
+  `Volume` BIGINT NULL,
+  CONSTRAINT `fk_prices_asset` FOREIGN KEY (`Asset_ID`) 
+    REFERENCES `Assets` (`Asset_ID`) ON DELETE CASCADE
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
+
+CREATE TABLE `Forecast_Logs` (
+  `Log_ID` INT AUTO_INCREMENT PRIMARY KEY,
+  `Asset_ID` INT NOT NULL,
+  `Forecast_Date` DATE NOT NULL,
+  `Model_Type` VARCHAR(100) NOT NULL,
+  `Predicted_Close_Price` DECIMAL(8,2) NOT NULL,
+  `Actual_Close_Price` DECIMAL(8,2) NULL,
+  `MAE_Score` DECIMAL(8,2) NULL,
+  `RMSE_Score` DECIMAL(8,2) NULL,
+  `MAPE_Score` DECIMAL(8,2) NULL,
+  `Prediction_Direction` INT NULL,
+  CONSTRAINT `fk_forecast_asset` FOREIGN KEY (`Asset_ID`) 
+    REFERENCES `Assets` (`Asset_ID`) ON DELETE CASCADE
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
+
+CREATE TABLE `Macroeconomic_Indicators` (
+  `Indicator_ID` INT AUTO_INCREMENT PRIMARY KEY,
+  `Record_Date` DATE NOT NULL,
+  `Frequency_Type` VARCHAR(100) NOT NULL,
+  `Opr_Rate` DECIMAL(8,2) NULL,
+  `Inflation_Rate_Cpi` DECIMAL(8,2) NULL,
+  `GDP_Growth` DECIMAL(8,2) NULL,
+  `Unemployment_Rate` DECIMAL(8,2) NULL,
+  `Exchange_Rate_MYR` DECIMAL(8,2) NULL
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
+```
+
+---
+
+## 🏛️ 4. Full Institutional Schema (Auth & User Governance)
 
 ```mermaid
 erDiagram
@@ -19,152 +182,128 @@ erDiagram
     MACRO_INDICATORS ||--o{ MACRO_OBSERVATIONS : "records"
 
     USERS {
-        int id PK "auto_increment"
-        varchar email UK "unique login"
-        varchar password_hash "PBKDF2/SHA-256"
-        varchar full_name "Analyst full name"
-        varchar role_title "Designation"
-        varchar department "Divisional affiliation"
-        varchar timezone "e.g. UTC+8"
-        text bio "Profile biography"
-        mediumtext avatar_url "Base64 / Image URI"
-        varchar api_key UK "Unique Terminal API Key"
-        tinyint two_factor_enabled "2FA flag"
-        tinyint terms_accepted "Compliance flag"
-        tinyint is_active "Account state"
-        timestamp last_login_at "Audit login"
-        timestamp created_at "Registration stamp"
-        timestamp updated_at "Update stamp"
+        int id PK
+        varchar email UK
+        varchar password_hash
+        varchar full_name
+        varchar role_title
+        varchar department
+        varchar timezone
+        text bio
+        mediumtext avatar_url
+        varchar api_key UK
+        tinyint two_factor_enabled
+        tinyint terms_accepted
+        tinyint is_active
+        timestamp last_login_at
+        timestamp created_at
+        timestamp updated_at
     }
 
     USER_SESSIONS {
-        varchar session_id PK "mp_live_... / UUID"
-        int user_id FK "References USERS(id)"
-        varchar ip_address "Client IP"
-        varchar user_agent "Browser / OS header"
-        varchar location "Geo-location string"
-        tinyint is_active "Active token state"
-        timestamp created_at "Session issue time"
-        timestamp last_active_at "Heartbeat stamp"
+        varchar session_id PK
+        int user_id FK
+        varchar ip_address
+        varchar user_agent
+        varchar location
+        tinyint is_active
+        timestamp created_at
+        timestamp last_active_at
     }
 
     PASSWORD_RESETS {
-        bigint id PK "auto_increment"
-        int user_id FK "References USERS(id)"
-        varchar email "User recovery email"
-        varchar reset_code "6-digit OTP code"
-        varchar token_hash "Cryptographic reset token"
-        timestamp expires_at "15-minute expiration"
-        tinyint is_used "One-time flag"
-        timestamp created_at "Issue timestamp"
-    }
-
-    LOGIN_ATTEMPTS {
-        bigint id PK "auto_increment"
-        varchar email "Attempted user email"
-        varchar ip_address "Remote IP address"
-        tinyint is_successful "1=Success, 0=Failed"
-        timestamp attempted_at "Audit timestamp"
+        bigint id PK
+        int user_id FK
+        varchar email
+        varchar reset_code
+        varchar token_hash
+        timestamp expires_at
+        tinyint is_used
+        timestamp created_at
     }
 
     USER_WORKSPACE_SETTINGS {
-        int id PK "auto_increment"
-        int user_id FK "References USERS(id), UNIQUE"
-        varchar default_landing_view "overview, trading, etc."
-        varchar benchmark_index "e.g. ^KLSE, ^GSPC"
-        varchar lookback_horizon "1mo, 3mo, 1y, 5y"
-        varchar focus_sector "all, Financials, Tech"
-        varchar reporting_currency "MYR, USD, EUR, SGD"
-        int polling_rate_seconds "Refresh cadence (15s)"
-        tinyint audio_chimes_enabled "Web Audio sound flag"
-        timestamp updated_at "Settings update stamp"
+        int id PK
+        int user_id FK
+        varchar default_landing_view
+        varchar benchmark_index
+        varchar lookback_horizon
+        varchar focus_sector
+        varchar reporting_currency
+        int polling_rate_seconds
+        tinyint audio_chimes_enabled
+        timestamp updated_at
     }
 
     USER_NOTIFICATION_RULES {
-        int id PK "auto_increment"
-        int user_id FK "References USERS(id), UNIQUE"
-        tinyint notify_opr "OPR policy shift alerts"
-        tinyint notify_cpi "Headline CPI alerts"
-        tinyint notify_stocks "Watchlist volatility alerts"
-        tinyint notify_inflow "Foreign capital flow alerts"
-        timestamp updated_at "Rule update stamp"
+        int id PK
+        int user_id FK
+        tinyint notify_opr
+        tinyint notify_cpi
+        tinyint notify_stocks
+        tinyint notify_inflow
+        timestamp updated_at
     }
 
     STOCKS {
-        varchar symbol PK "e.g. 1155.KL, NVDA"
-        varchar name "Full company legal name"
-        varchar exchange "KLSE, NASDAQ, NYSE"
-        varchar country "MY, US, TW"
-        varchar sector "Financials, Tech, Energy"
-        tinyint is_active "Trading status"
-        timestamp created_at "Catalog entry stamp"
+        varchar symbol PK
+        varchar name
+        varchar exchange
+        varchar country
+        varchar sector
+        tinyint is_active
+        timestamp created_at
     }
 
     USER_WATCHLISTS {
-        int id PK "auto_increment"
-        int user_id FK "References USERS(id)"
-        varchar stock_symbol FK "References STOCKS(symbol)"
-        decimal target_buy_price "Target entry limit"
-        decimal target_sell_price "Target exit limit"
-        varchar notes "Analyst investment thesis"
-        timestamp added_at "Creation timestamp"
+        int id PK
+        int user_id FK
+        varchar stock_symbol FK
+        decimal target_buy_price
+        decimal target_sell_price
+        varchar notes
+        timestamp added_at
     }
 
     MACRO_INDICATORS {
-        varchar indicator_id PK "e.g. BNM_OPR, FEDFUNDS"
-        varchar name "Economic indicator name"
-        varchar unit "%, Index, Billions USD"
-        varchar frequency "Daily, Monthly, Quarterly"
-        varchar category "Monetary, Inflation, Yield"
-        varchar target_benchmark "Policy band / target"
-        timestamp created_at "Registry stamp"
+        varchar indicator_id PK
+        varchar name
+        varchar unit
+        varchar frequency
+        varchar category
+        varchar target_benchmark
+        timestamp created_at
     }
 
     MACRO_OBSERVATIONS {
-        bigint id PK "auto_increment"
-        varchar indicator_id FK "References MACRO_INDICATORS(id)"
-        date observation_date "Period cutoff date"
-        decimal observation_value "Recorded quantitative metric"
-        timestamp created_at "Ingestion stamp"
+        bigint id PK
+        varchar indicator_id FK
+        date observation_date
+        decimal observation_value
+        timestamp created_at
     }
 
     MODEL_METADATA {
-        varchar model_id PK "lstm, transformer, etc."
-        varchar model_name "Algorithm display title"
-        varchar description "Architecture summary"
-        varchar algorithm "BiLSTM, PatchTST, XGBoost"
-        varchar framework "PyTorch, Scikit-Learn"
-        timestamp created_at "Registration stamp"
+        varchar model_id PK
+        varchar model_name
+        varchar description
+        varchar algorithm
+        varchar framework
+        timestamp created_at
     }
 
     MODEL_RUN_LOGS {
-        bigint id PK "auto_increment"
-        varchar model_id FK "References MODEL_METADATA(id)"
-        varchar target_symbol FK "References STOCKS(symbol)"
-        enum run_type "inference, retrain, backtest"
-        decimal rmse "Root Mean Squared Error"
-        decimal mae "Mean Absolute Error"
-        decimal mape "Mean Absolute % Error"
-        decimal accuracy_score "Overall fit accuracy %"
-        decimal direction_accuracy "Hit Rate % (Up/Down)"
-        decimal runtime_seconds "Inference latency (s)"
-        varchar notes "Execution details"
-        timestamp created_at "Execution timestamp"
+        bigint id PK
+        varchar model_id FK
+        varchar target_symbol FK
+        enum run_type
+        decimal rmse
+        decimal mae
+        decimal mape
+        decimal accuracy_score
+        decimal direction_accuracy
+        decimal runtime_seconds
+        varchar notes
+        timestamp created_at
     }
 ```
-
----
-
-## 🔗 Cardinality & Relationship Matrix
-
-| Parent Table | Child Table | Foreign Key Column | Cardinality | Cascade Action | Description |
-| :--- | :--- | :--- | :---: | :--- | :--- |
-| `users` | `user_sessions` | `user_id` | `1 : 0..*` | `ON DELETE CASCADE` | Multiple active device sessions per user. |
-| `users` | `password_resets` | `user_id` | `1 : 0..*` | `ON DELETE CASCADE` | Audit log of OTP password reset requests. |
-| `users` | `user_workspace_settings` | `user_id` | `1 : 1` | `ON DELETE CASCADE` | User terminal preferences & base currency. |
-| `users` | `user_notification_rules` | `user_id` | `1 : 1` | `ON DELETE CASCADE` | Notification alert preferences. |
-| `users` | `user_watchlists` | `user_id` | `1 : 0..*` | `ON DELETE CASCADE` | Analyst bookmarked equities. |
-| `stocks` | `user_watchlists` | `stock_symbol` | `1 : 0..*` | `ON DELETE CASCADE` | Associative join between users and stock catalog. |
-| `stocks` | `model_run_logs` | `target_symbol` | `1 : 0..*` | `ON DELETE CASCADE` | Target equity evaluated by AI models. |
-| `model_metadata` | `model_run_logs` | `model_id` | `1 : 0..*` | `ON DELETE CASCADE` | Time-stamped inference & backtest run telemetry. |
-| `macro_indicators`| `macro_observations` | `indicator_id` | `1 : 0..*` | `ON DELETE CASCADE` | Historical time-series points per macro series. |

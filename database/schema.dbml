@@ -1,0 +1,50 @@
+// MacroPulse ER Diagram (DBML for dbdiagram.io)
+// Paste this directly into https://dbdiagram.io to generate the exact visual diagram!
+
+Table Assets {
+  Asset_ID int [pk, not null, note: 'Primary Key']
+  Ticker_Symbol varchar(100) [not null]
+  Company_Name varchar(100)
+  Sector varchar(100)
+  Currency varchar(15) [not null]
+}
+
+Table DailyStockPrices {
+  Price_ID int [pk, not null, note: 'Primary Key']
+  Asset_ID integer [not null, note: 'Foreign Key to Assets']
+  Trading_Date date
+  Open_Price decimal(8,2)
+  High_Price decimal(8,2)
+  Low_Price decimal(8,2)
+  Close_Price decimal(8,2)
+  Adj_Close decimal(8,2)
+  Volume bigint
+}
+
+Table Forecast_Logs {
+  Log_ID int [pk, not null, note: 'Primary Key']
+  Asset_ID integer [not null, note: 'Foreign Key to Assets']
+  Forecast_Date date
+  Model_Type varchar(100)
+  Predicted_Close_Price decimal(8,2)
+  Actual_Close_Price decimal(8,2)
+  MAE_Score decimal(8,2)
+  RMSE_Score decimal(8,2)
+  MAPE_Score decimal(8,2)
+  Prediction_Direction integer
+}
+
+Table Macroeconomic_Indicators {
+  Indicator_ID int [pk, not null, note: 'Primary Key']
+  Record_Date date
+  Frequency_Type varchar(100)
+  Opr_Rate decimal(8,2)
+  Inflation_Rate_Cpi decimal(8,2)
+  GDP_Growth decimal(8,2)
+  Unemployment_Rate decimal(8,2)
+  Exchange_Rate_MYR decimal(8,2)
+}
+
+// Relationships (1-to-many with crow's foot notation)
+Ref: Assets.Asset_ID < DailyStockPrices.Asset_ID
+Ref: Assets.Asset_ID < Forecast_Logs.Asset_ID
