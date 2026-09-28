@@ -1,108 +1,110 @@
-# 🔄 MacroPulse Institutional Terminal — System Flowchart
+# 🔄 MacroPulse Institutional Terminal — Clean System Flowchart
 
-This document details the complete end-to-end **System Flowchart** for the **MacroPulse Institutional Terminal**, detailing the user journey from authentication and security token verification to multi-dashboard routing, real-time data ingestion, quantitative AI model benchmarking, and background event-driven telemetry.
+A structured, clean, textbook-grade **System Flowchart** for the **MacroPulse Institutional Terminal**, organized into 4 distinct modular architectural layers to eliminate line crossing and clutter.
 
 ---
 
-## 📌 1. Complete System Flowchart (Mermaid.js)
+## 📌 1. Clean Structured Flowchart (Mermaid.js)
 
 ```mermaid
 %%{init: {'theme': 'dark'}}%%
 flowchart TD
-    Start([🚀 User Accesses MacroPulse Terminal]) --> CheckAuth{"Active Session Token?<br/>(Local Storage)"}
+    %% -----------------------------------------------------------------
+    %% LAYER 1: AUTHENTICATION & ACCESS CONTROL
+    %% -----------------------------------------------------------------
+    subgraph L1 ["1. Authentication & Identity Layer"]
+        Start([🚀 Start: User Access]) --> CheckAuth{"Valid Session<br/>Token?"}
+        
+        CheckAuth -- No --> AuthPortal["🔐 Login / OAuth 2.0 / OTP Reset"]
+        AuthPortal --> VerifyCreds{"Valid<br/>Credentials?"}
+        VerifyCreds -- No --> LogFail["Log to LOGIN_ATTEMPTS"] --> AuthPortal
+        VerifyCreds -- Yes --> CreateSession["Issue Session (USER_SESSIONS)"]
+        
+        CheckAuth -- Yes --> LoadSettings["Load USER_WORKSPACE_SETTINGS"]
+        CreateSession --> LoadSettings
+    end
 
-    %% -------------------------------------------------------------
-    %% AUTHENTICATION & IDENTITY GOVERNANCE
-    %% -------------------------------------------------------------
-    CheckAuth -- "No / Expired" --> LoginModal["🔐 Display Authentication Portal<br/>(Email/Password, Google OAuth 2.0 GIS, OTP Reset)"]
-    LoginModal --> SubmitAuth["Submit Credentials to /api/auth/*"]
-    SubmitAuth --> ValidateAuth{"Valid Credentials?"}
-    
-    ValidateAuth -- "No" --> LogFail["Log Failed Attempt in LOGIN_ATTEMPTS"]
-    LogFail --> ShowAuthErr["Display Authentication Error Banner"]
-    ShowAuthErr --> LoginModal
-    
-    ValidateAuth -- "Yes" --> GenSession["Generate Cryptographic Session Token<br/>(mp_live_... in USER_SESSIONS)"]
-    GenSession --> LoadProfile["Load User Profile & Regional Settings<br/>(USER_WORKSPACE_SETTINGS)"]
+    %% -----------------------------------------------------------------
+    %% LAYER 2: WORKSPACE & NAVIGATION DISPATCHER
+    %% -----------------------------------------------------------------
+    subgraph L2 ["2. Workspace & Routing Layer"]
+        LoadSettings --> InitWorkspace["🖥️ Initialize Workspace (Theme, Currency, Polling)"]
+        InitWorkspace --> Dispatcher{"Select Dashboard"}
+        
+        Dispatcher --> V1["📊 1. Macro & Equities"]
+        Dispatcher --> V2["🏛️ 2. Central Bank Policy"]
+        Dispatcher --> V3["📈 3. Stock Candlesticks"]
+        Dispatcher --> V4["🌐 4. Global FX & Yields"]
+        Dispatcher --> V5["🧠 5. AI Model Console"]
+        Dispatcher --> V6["⚙️ 6. Profile & Settings"]
+    end
 
-    CheckAuth -- "Yes" --> ValidateToken{"Validate Token with Server?"}
-    ValidateToken -- "Valid" --> LoadProfile
-    ValidateToken -- "Invalid" --> LoginModal
+    %% -----------------------------------------------------------------
+    %% LAYER 3: DATA PROCESSING & QUANTITATIVE AI
+    %% -----------------------------------------------------------------
+    subgraph L3 ["3. Analytics & Processing Engine"]
+        V1 --> IngestMarket["Ingest Live Market Pulse & Sector Data"]
+        V2 --> IngestFRED["Query St. Louis Fed FRED REST API"]
+        V3 --> IngestQuotes["Ingest yfinance Quotes & Order Book"]
+        V4 --> IngestYields["Ingest Sovereign Curves (MGS/UST/Bund)"]
+        
+        IngestMarket & IngestFRED & IngestQuotes & IngestYields --> CanvasEngine["HTML5 Canvas 2D Vector Rendering<br/>(Candlesticks, EMAs, Corridors, Gauges)"]
+        
+        V5 --> AIModel["Execute Model (BiLSTM, XGBoost, Prophet...)"]
+        AIModel --> CalcMetrics["Calculate Evaluation Metrics (RMSE, MAE, MAPE)"]
+        
+        V6 --> SaveConfig["Update User Preferences & Password"]
+    end
 
-    %% -------------------------------------------------------------
-    %% TERMINAL WORKSPACE INITIALIZATION
-    %% -------------------------------------------------------------
-    LoadProfile --> InitTerminal["🖥️ Initialize Institutional Workspace<br/>• Apply Theme & Regional Base Currency (MYR/USD/EUR/SGD)<br/>• Configure Polling Frequency (15s Default)<br/>• Initialize Web Audio API Synth Engine"]
-    
-    InitTerminal --> RouteNav{"Select Navigation View<br/>(Sidebar Tabs)"}
-
-    %% -------------------------------------------------------------
-    %% 6 MODULAR DASHBOARDS
-    %% -------------------------------------------------------------
-    RouteNav -->|#view-overview| ViewOverview["📊 1. Macro & Equities Overview<br/>• Ingest /api/market-pulse<br/>• Render Canvas Micro-Sparklines<br/>• Policy Rate vs. KLCI Wave Chart<br/>• Sector Rotation Breakdown"]
-    
-    RouteNav -->|#view-logs| ViewPolicy["🏛️ 2. Central Bank Policy & Rates<br/>• Query St. Louis Fed FRED Series<br/>• Render Policy Corridor Gauge<br/>• Streaming Real-Time Newswire Ticker"]
-    
-    RouteNav -->|#view-trading| ViewTrading["📈 3. Stock Analysis & Trading Terminal<br/>• Fetch yfinance Quotes (/api/stock-history)<br/>• Render HiDPI HTML5 Canvas Candlestick Chart<br/>• Compute Dynamic EMA-20 & EMA-50 Overlays<br/>• Dynamic FX Base Currency Conversion<br/>• Synthetic Order Book Depth Ladder"]
-    
-    RouteNav -->|#view-analytics| ViewAnalytics["🌐 4. Global FX & Sovereign Yields<br/>• Ingest MGS, UST, Bund & JGB Curves<br/>• Compute 10Y-2Y Inversion Spreads<br/>• Foreign Capital Inflows Telemetry"]
-    
-    RouteNav -->|#view-models| ViewModels["🧠 5. AI Model Performance Console<br/>• Benchmark 5 Architectures (BiLSTM, XGBoost...)<br/>• Compute Error Metrics (RMSE, MAE, MAPE)<br/>• Render 95% Gaussian Confidence Envelope<br/>• Audit Run Logs & RFC 4180 CSV Export"]
-    
-    RouteNav -->|#view-settings| ViewSettings["⚙️ 6. Workspace Settings & Governance<br/>• Profile & Bio Synchronization<br/>• Password Complexity Validation Meter<br/>• User Notification Alert Rules"]
-
-    %% -------------------------------------------------------------
-    %% BACKGROUND TELEMETRY & EVENT DISPATCHER
-    %% -------------------------------------------------------------
-    ViewOverview --> PollingLoop["⏱️ Background Polling Worker<br/>(Every 15 Seconds)"]
-    ViewTrading --> PollingLoop
-    ViewPolicy --> PollingLoop
-
-    PollingLoop --> FetchAPI["Fetch Live Market Data & Ingest Macro Signals"]
-    FetchAPI --> CheckAlerts{"Threshold Triggered?<br/>(OPR Change / Watchlist Alert)"}
-    
-    CheckAlerts -- "Yes" --> WebAudio["🔔 Synthesize Audio Chime Alert<br/>(Web Audio Oscillator + Toast Notification)"]
-    CheckAlerts -- "No" --> RefreshUI["Update Active DOM Elements & Canvas Pixels"]
-    WebAudio --> RefreshUI
-
-    %% -------------------------------------------------------------
-    %% USER INTERACTIONS & DATABASE PERSISTENCE
-    %% -------------------------------------------------------------
-    RefreshUI --> UserAction{"Analyst Action"}
-    
-    UserAction -->|Switch Tab| RouteNav
-    UserAction -->|Manage Watchlist| DBWatchlist["Persist in USER_WATCHLISTS (MySQL)"] --> RefreshUI
-    UserAction -->|Execute AI Model| ExecuteModel["Run Model Inference / Backtest Pipeline"] --> LogModel["Persist Metrics in MODEL_RUN_LOGS"] --> RefreshUI
-    UserAction -->|Update Settings| SaveSettings["Save Preferences to USER_WORKSPACE_SETTINGS"] --> RefreshUI
-    UserAction -->|Download Report| ExportReport["Generate Printable PDF / Market Report"] --> RefreshUI
-    UserAction -->|Logout| TerminateSession["Invalidate Token in USER_SESSIONS<br/>& Clear Local Storage"] --> LoginModal
+    %% -----------------------------------------------------------------
+    %% LAYER 4: NOTIFICATIONS & PERSISTENCE
+    %% -----------------------------------------------------------------
+    subgraph L4 ["4. Alerts, Persistence & Lifecycle"]
+        CanvasEngine --> CheckAlert{"Threshold<br/>Exceeded?"}
+        CheckAlert -- Yes --> AudioAlert["🔔 Web Audio API Chime & Toast"]
+        CheckAlert -- No --> DisplayUI["Display Visual Analytics Output"]
+        AudioAlert --> DisplayUI
+        
+        CalcMetrics --> SaveModelRun[(Save to MODEL_RUN_LOGS)]
+        SaveConfig --> SaveSettingsDB[(Save to USER_WORKSPACE_SETTINGS)]
+        
+        DisplayUI --> UserAction{"Analyst Action"}
+        UserAction -- "Switch View" --> Dispatcher
+        UserAction -- "Logout" --> Exit([🔒 Invalidate Session & Exit])
+    end
 ```
 
 ---
 
-## 🔍 2. Detailed Breakdown by Architectural Phase
+## 📌 2. Simplified High-Level Executive Flowchart (For FYP Overview Slides)
 
-### Phase 1: Identity Verification & Session Initialization
-1. **Entry Point**: The analyst connects to the client application (`index.html`).
-2. **Token Verification**: The browser inspects `localStorage` for a cryptographic session token (`mp_live_...`).
-3. **Authentication Modal**: If no active session exists, the portal offers:
-   - **Password-based login** (hashed with PBKDF2/SHA-256 against `users`).
-   - **Google OAuth 2.0 (GIS)** identity verification.
-   - **SMTP 2-Step OTP Password Reset** (transmitting a 15-minute 6-digit recovery code).
-4. **Audit Enforcement**: Successful logins issue an entry in `user_sessions`. Failed attempts trigger an increment in `login_attempts` to defend against brute-force attacks.
+If you need a very high-level, compact version for presentation slides or thesis executive summaries:
 
-### Phase 2: Workspace Customization & Routing
-1. **Preference Hydration**: The terminal loads settings from `user_workspace_settings`:
-   - Selected Base Currency (`MYR`, `USD`, `EUR`, `SGD`).
-   - Polling Frequency (defaults to 15s).
-   - Audio Chimes (Web Audio API synth).
-2. **Dashboard Dispatcher**: The analyst is routed to their preferred landing view or selects any of the 6 specialized dashboards via sidebar navigation.
-
-### Phase 3: Real-Time Data Ingestion & Analytics
-- **Bursa Malaysia & US Equities Engine**: Fetches live tick and OHLCV bars using the Python `yfinance` microservice wrapper.
-- **FRED Intelligence Engine**: Directly queries St. Louis Fed endpoints (`FEDFUNDS`, `CPIAUCSL`, `GDPC1`, `UNRATE`) with TTL caching.
-- **Canvas Rendering Engine**: Executes double-buffered pixel rendering loops for candlestick wicks, bodies, moving averages, and crosshairs at 60 FPS without DOM overhead.
-
-### Phase 4: Quantitative AI Forecasting & Benchmarking
-- Users select an asset and AI architecture (Stacked BiLSTM, XGBoost, Prophet, SARIMAX, PatchTST).
-- The system evaluates forecast horizons (5D, 15D, 30D), computes statistical loss metrics ($RMSE$, $MAE$, $MAPE$, directional accuracy), and stores the telemetry trace in `model_run_logs`.
+```mermaid
+%%{init: {'theme': 'dark'}}%%
+flowchart TD
+    A([User Access]) --> B{Authenticated?}
+    B -- No --> C[Login / 2FA / Google OAuth]
+    C --> D[Generate Session Token]
+    B -- Yes --> E[Load Workspace Preferences]
+    D --> E
+    
+    E --> F{Select Dashboard View}
+    
+    F --> G[Macro & Equities Surveillance]
+    F --> H[Stock Analysis & Canvas Candlesticks]
+    F --> I[Quantitative AI Model Benchmarking]
+    F --> J[Workspace Settings & Security]
+    
+    G & H --> K[Real-Time Ingestion: yfinance & FRED]
+    K --> L[Render High-DPI Charts & Sparklines]
+    
+    I --> M[Inference: BiLSTM / XGBoost / Prophet]
+    M --> N[(Log Telemetry to MySQL DB)]
+    
+    J --> O[(Save Settings & Profile)]
+    
+    L & N & O --> P{Action?}
+    P -- Navigate --> F
+    P -- Logout --> Q([End Session])
+```

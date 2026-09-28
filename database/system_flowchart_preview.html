@@ -3,7 +3,7 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>MacroPulse System Flowchart</title>
+  <title>MacroPulse System Flowchart — Clean Architecture</title>
   <script src="https://cdn.jsdelivr.net/npm/mermaid@10/dist/mermaid.min.js"></script>
   <style>
     * { box-sizing: border-box; margin: 0; padding: 0; }
@@ -18,12 +18,12 @@
     }
     header {
       text-align: center;
-      margin-bottom: 25px;
+      margin-bottom: 20px;
     }
     h1 {
       font-size: 26px;
       color: #38bdf8;
-      margin-bottom: 8px;
+      margin-bottom: 6px;
     }
     p {
       color: #94a3b8;
@@ -50,7 +50,7 @@
       background: #111827;
       border: 1px solid #1f2937;
       border-radius: 12px;
-      padding: 30px;
+      padding: 24px;
       max-width: 95vw;
       overflow-x: auto;
       box-shadow: 0 10px 25px rgba(0,0,0,0.5);
@@ -68,8 +68,8 @@
 </head>
 <body>
   <header>
-    <h1>🔄 MacroPulse Terminal — System Flowchart</h1>
-    <p>End-to-End Operational Lifecycle: Authentication → Workspace Routing → Real-Time Ingestion → AI Telemetry → Persistence</p>
+    <h1>🔄 MacroPulse Terminal — Clean System Flowchart</h1>
+    <p>4-Layer Modular Architecture: Authentication → Workspace Routing → Ingestion & AI → Persistence</p>
   </header>
   <div class="toolbar">
     <button onclick="window.print()">🖨️ Print / Save as PDF</button>
@@ -77,63 +77,69 @@
   <div class="card">
     <pre class="mermaid">
 flowchart TD
-    Start([🚀 User Accesses MacroPulse Terminal]) --> CheckAuth{"Active Session Token?<br/>(Local Storage)"}
+    %% -----------------------------------------------------------------
+    %% LAYER 1: AUTHENTICATION & ACCESS CONTROL
+    %% -----------------------------------------------------------------
+    subgraph L1 ["1. Authentication & Identity Layer"]
+        Start([🚀 Start: User Access]) --> CheckAuth{"Valid Session<br/>Token?"}
+        
+        CheckAuth -- No --> AuthPortal["🔐 Login / OAuth 2.0 / OTP Reset"]
+        AuthPortal --> VerifyCreds{"Valid<br/>Credentials?"}
+        VerifyCreds -- No --> LogFail["Log to LOGIN_ATTEMPTS"] --> AuthPortal
+        VerifyCreds -- Yes --> CreateSession["Issue Session (USER_SESSIONS)"]
+        
+        CheckAuth -- Yes --> LoadSettings["Load USER_WORKSPACE_SETTINGS"]
+        CreateSession --> LoadSettings
+    end
 
-    %% Authentication
-    CheckAuth -- "No / Expired" --> LoginModal["🔐 Display Authentication Portal<br/>(Email/Password, Google OAuth 2.0 GIS, OTP Reset)"]
-    LoginModal --> SubmitAuth["Submit Credentials to /api/auth/*"]
-    SubmitAuth --> ValidateAuth{"Valid Credentials?"}
-    
-    ValidateAuth -- "No" --> LogFail["Log Failed Attempt in LOGIN_ATTEMPTS"]
-    LogFail --> ShowAuthErr["Display Authentication Error Banner"]
-    ShowAuthErr --> LoginModal
-    
-    ValidateAuth -- "Yes" --> GenSession["Generate Cryptographic Session Token<br/>(mp_live_... in USER_SESSIONS)"]
-    GenSession --> LoadProfile["Load User Profile & Regional Settings<br/>(USER_WORKSPACE_SETTINGS)"]
+    %% -----------------------------------------------------------------
+    %% LAYER 2: WORKSPACE & NAVIGATION DISPATCHER
+    %% -----------------------------------------------------------------
+    subgraph L2 ["2. Workspace & Routing Layer"]
+        LoadSettings --> InitWorkspace["🖥️ Initialize Workspace (Theme, Currency, Polling)"]
+        InitWorkspace --> Dispatcher{"Select Dashboard"}
+        
+        Dispatcher --> V1["📊 1. Macro & Equities"]
+        Dispatcher --> V2["🏛️ 2. Central Bank Policy"]
+        Dispatcher --> V3["📈 3. Stock Candlesticks"]
+        Dispatcher --> V4["🌐 4. Global FX & Yields"]
+        Dispatcher --> V5["🧠 5. AI Model Console"]
+        Dispatcher --> V6["⚙️ 6. Profile & Settings"]
+    end
 
-    CheckAuth -- "Yes" --> ValidateToken{"Validate Token with Server?"}
-    ValidateToken -- "Valid" --> LoadProfile
-    ValidateToken -- "Invalid" --> LoginModal
+    %% -----------------------------------------------------------------
+    %% LAYER 3: DATA PROCESSING & QUANTITATIVE AI
+    %% -----------------------------------------------------------------
+    subgraph L3 ["3. Analytics & Processing Engine"]
+        V1 --> IngestMarket["Ingest Live Market Pulse & Sector Data"]
+        V2 --> IngestFRED["Query St. Louis Fed FRED REST API"]
+        V3 --> IngestQuotes["Ingest yfinance Quotes & Order Book"]
+        V4 --> IngestYields["Ingest Sovereign Curves (MGS/UST/Bund)"]
+        
+        IngestMarket & IngestFRED & IngestQuotes & IngestYields --> CanvasEngine["HTML5 Canvas 2D Vector Rendering<br/>(Candlesticks, EMAs, Corridors, Gauges)"]
+        
+        V5 --> AIModel["Execute Model (BiLSTM, XGBoost, Prophet...)"]
+        AIModel --> CalcMetrics["Calculate Evaluation Metrics (RMSE, MAE, MAPE)"]
+        
+        V6 --> SaveConfig["Update User Preferences & Password"]
+    end
 
-    %% Workspace
-    LoadProfile --> InitTerminal["🖥️ Initialize Institutional Workspace<br/>• Apply Theme & Base Currency (MYR/USD/EUR/SGD)<br/>• Configure Polling Frequency (15s Default)<br/>• Initialize Web Audio API Synth Engine"]
-    
-    InitTerminal --> RouteNav{"Select Navigation View<br/>(Sidebar Tabs)"}
-
-    %% 6 Dashboards
-    RouteNav -->|#view-overview| ViewOverview["📊 1. Macro & Equities Overview<br/>• Ingest /api/market-pulse<br/>• Render Canvas Micro-Sparklines<br/>• Policy Rate vs. KLCI Wave Chart<br/>• Sector Rotation Breakdown"]
-    
-    RouteNav -->|#view-logs| ViewPolicy["🏛️ 2. Central Bank Policy & Rates<br/>• Query St. Louis Fed FRED Series<br/>• Render Policy Corridor Gauge<br/>• Streaming Real-Time Newswire Ticker"]
-    
-    RouteNav -->|#view-trading| ViewTrading["📈 3. Stock Analysis & Trading Terminal<br/>• Fetch yfinance Quotes (/api/stock-history)<br/>• Render HiDPI HTML5 Canvas Candlestick Chart<br/>• Dynamic FX Base Currency Conversion<br/>• Synthetic Order Book Depth Ladder"]
-    
-    RouteNav -->|#view-analytics| ViewAnalytics["🌐 4. Global FX & Sovereign Yields<br/>• Ingest MGS, UST, Bund & JGB Curves<br/>• Compute 10Y-2Y Inversion Spreads<br/>• Foreign Capital Inflows Telemetry"]
-    
-    RouteNav -->|#view-models| ViewModels["🧠 5. AI Model Performance Console<br/>• Benchmark 5 Architectures (BiLSTM, XGBoost...)<br/>• Compute Error Metrics (RMSE, MAE, MAPE)<br/>• Render 95% Gaussian Confidence Envelope<br/>• Audit Run Logs & RFC 4180 CSV Export"]
-    
-    RouteNav -->|#view-settings| ViewSettings["⚙️ 6. Workspace Settings & Governance<br/>• Profile & Bio Synchronization<br/>• Password Complexity Validation Meter<br/>• User Notification Alert Rules"]
-
-    %% Telemetry & Background Loops
-    ViewOverview --> PollingLoop["⏱️ Background Polling Worker<br/>(Every 15 Seconds)"]
-    ViewTrading --> PollingLoop
-    ViewPolicy --> PollingLoop
-
-    PollingLoop --> FetchAPI["Fetch Live Market Data & Ingest Macro Signals"]
-    FetchAPI --> CheckAlerts{"Threshold Triggered?<br/>(OPR Change / Watchlist Alert)"}
-    
-    CheckAlerts -- "Yes" --> WebAudio["🔔 Synthesize Audio Chime Alert<br/>(Web Audio Oscillator + Toast Notification)"]
-    CheckAlerts -- "No" --> RefreshUI["Update Active DOM Elements & Canvas Pixels"]
-    WebAudio --> RefreshUI
-
-    %% User Actions
-    RefreshUI --> UserAction{"Analyst Action"}
-    
-    UserAction -->|Switch Tab| RouteNav
-    UserAction -->|Manage Watchlist| DBWatchlist["Persist in USER_WATCHLISTS (MySQL)"] --> RefreshUI
-    UserAction -->|Execute AI Model| ExecuteModel["Run Model Inference / Backtest Pipeline"] --> LogModel["Persist Metrics in MODEL_RUN_LOGS"] --> RefreshUI
-    UserAction -->|Update Settings| SaveSettings["Save Preferences to USER_WORKSPACE_SETTINGS"] --> RefreshUI
-    UserAction -->|Download Report| ExportReport["Generate Printable PDF / Market Report"] --> RefreshUI
-    UserAction -->|Logout| TerminateSession["Invalidate Token in USER_SESSIONS<br/>& Clear Local Storage"] --> LoginModal
+    %% -----------------------------------------------------------------
+    %% LAYER 4: NOTIFICATIONS & PERSISTENCE
+    %% -----------------------------------------------------------------
+    subgraph L4 ["4. Alerts, Persistence & Lifecycle"]
+        CanvasEngine --> CheckAlert{"Threshold<br/>Exceeded?"}
+        CheckAlert -- Yes --> AudioAlert["🔔 Web Audio API Chime & Toast"]
+        CheckAlert -- No --> DisplayUI["Display Visual Analytics Output"]
+        AudioAlert --> DisplayUI
+        
+        CalcMetrics --> SaveModelRun[(Save to MODEL_RUN_LOGS)]
+        SaveConfig --> SaveSettingsDB[(Save to USER_WORKSPACE_SETTINGS)]
+        
+        DisplayUI --> UserAction{"Analyst Action"}
+        UserAction -- "Switch View" --> Dispatcher
+        UserAction -- "Logout" --> Exit([🔒 Invalidate Session & Exit])
+    end
     </pre>
   </div>
   <script>
