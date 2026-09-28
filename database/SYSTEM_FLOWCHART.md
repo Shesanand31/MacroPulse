@@ -1,16 +1,14 @@
-# 🔄 MacroPulse Institutional Terminal — System Flowcharts
+# 🔄 MacroPulse Institutional Terminal — Academic System Flowchart
 
-This document provides both the **Academic System Flowchart** (following standard software engineering notations with custom shape styles matching your thesis format) and the **Modular 4-Layer Flowchart**.
+A software engineering system flowchart adhering strictly to standard Mermaid.js syntax without parser errors, formatted with the exact visual language of your reference diagram:
+* **Terminators (`Start` / `End`)**: Rounded pill shapes (`([Start])`) with purple outlines.
+* **Decisions**: Diamond shapes (`{Decision?}`) with clean blue outlines and `Yes` / `No` branches.
+* **Input / Output Operations**: Slanted amber parallelograms (`[/Input or Display Data/]`).
+* **Internal Processes**: Soft pink rectangles (`[Process Step]`).
 
 ---
 
-## 📌 1. Academic System Flowchart (Matching Your Reference Image)
-
-This flowchart implements the exact visual conventions from your reference diagram:
-* **Terminators (`Start` / `End`)**: Rounded pill shapes (`([Start])`) with soft purple/pink borders.
-* **Decisions**: Diamond shapes (`{Decision?}`) with clean blue outlines.
-* **Input / Output Operations**: Slanted parallelograms (`[/Input Data/]`) in soft amber/yellow.
-* **Internal Processes**: Rectangles (`[Process]`) with soft pink fills.
+## 📌 1. Error-Free Mermaid.js Flowchart Code
 
 ```mermaid
 %%{init: {
@@ -25,7 +23,7 @@ This flowchart implements the exact visual conventions from your reference diagr
   }
 }}%%
 flowchart TD
-    %% Custom Styling Classes matching user picture
+    %% Custom Styling Classes matching reference diagram
     classDef terminal fill:#f3e8ff,stroke:#a855f7,stroke-width:2px,color:#1e1b4b;
     classDef decision fill:#ffffff,stroke:#3b82f6,stroke-width:1.8px,color:#1e1b4b;
     classDef process fill:#fce7f3,stroke:#ec4899,stroke-width:1.5px,color:#1e1b4b;
@@ -34,137 +32,93 @@ flowchart TD
     %% -----------------------------------------------------------------
     %% 1. AUTHENTICATION & REGISTRATION
     %% -----------------------------------------------------------------
-    Start([Start]):::terminal --> NewUser{"New<br/>User?"}:::decision
-    NewUser -- "Yes" --> Signup[Signup]:::process
-    Signup --> ValidateSignup{"Validate<br/>Credentials?"}:::decision
+    Start(["Start"]) --> NewUser{"New User?"}
+    NewUser -- "Yes" --> Signup["Signup"]
+    Signup --> ValidateSignup{"Validate Credentials?"}
     ValidateSignup -- "No" --> Signup
-    ValidateSignup -- "Yes" --> CreateAccount[Create<br/>Account]:::process --> Login[Login]:::process
+    ValidateSignup -- "Yes" --> CreateAccount["Create Account"] --> Login["Login"]
     NewUser -- "No" --> Login
 
-    Login --> EnterCreds[/Enter Login<br/>Details/]:::io
-    EnterCreds --> ValidCreds{"Valid User<br/>Credentials?"}:::decision
-    ValidCreds -- "No" --> ResetPW[Reset Password]:::process --> Login
-    ValidCreds -- "Yes" --> Dashboard[View User<br/>Dashboard]:::process
+    Login --> EnterCreds[/"Enter Login Details"/]
+    EnterCreds --> ValidCreds{"Valid User Credentials?"}
+    ValidCreds -- "No" --> ResetPW["Reset Password"] --> Login
+    ValidCreds -- "Yes" --> Dashboard["View User Dashboard"]
 
     %% -----------------------------------------------------------------
-    %% 2. WATCHLIST MANAGEMENT (Parallel to Folder Management)
+    %% 2. WATCHLIST MANAGEMENT (Matching Folders in reference)
     %% -----------------------------------------------------------------
-    Dashboard --> ManageWatchlist{"Manage<br/>Watchlist?"}:::decision
-    ManageWatchlist -- "Yes" --> AddStock{"Add New<br/>Stock?"}:::decision
-    AddStock -- "Yes" --> EnterStock[/Enter Stock Symbol<br/>& Price Target/]:::io
-    EnterStock --> UpdateWatchlist[Update Watchlist<br/>Data]:::process
+    Dashboard --> ManageWatchlist{"Manage Watchlist?"}
+    ManageWatchlist -- "Yes" --> AddStock{"Add New Stock?"}
+    AddStock -- "Yes" --> EnterStock[/"Enter Stock Symbol & Price Target"/]
+    EnterStock --> UpdateWatchlist["Update Watchlist Data"] --> AnalyzeStock
 
-    AddStock -- "No" --> RemoveStock{"Remove<br/>Stock?"}:::decision
-    RemoveStock -- "Yes" --> PromptRemove[/Prompt Delete<br/>Confirmation/]:::io
+    AddStock -- "No" --> RemoveStock{"Remove Stock?"}
+    RemoveStock -- "Yes" --> PromptRemove[/"Prompt Delete Confirmation"/]
     PromptRemove --> UpdateWatchlist
-    RemoveStock -- "No" --> FlowHub[ ]
+    RemoveStock -- "No" --> AnalyzeStock
 
-    UpdateWatchlist --> FlowHub
-
-    ManageWatchlist -- "No" --> FlowHub
+    ManageWatchlist -- "No" --> AnalyzeStock
 
     %% -----------------------------------------------------------------
     %% 3. MAIN VERTICAL SPINE & HORIZONTAL PIPELINES
     %% -----------------------------------------------------------------
-    FlowHub --> AnalyzeStock{"Analyze<br/>Stock?"}:::decision
+    AnalyzeStock{"Analyze Stock?"}
     
     %% Equities & AI Forecast Branch
-    AnalyzeStock -- "Yes" --> DisplayStock[Display Stock<br/>Terminal]:::process
-    DisplayStock --> FetchOHLCV[Fetch OHLCV<br/>yfinance Data]:::process
-    FetchOHLCV --> RenderCandle[/Render Canvas<br/>Candlestick & EMAs/]:::io
+    AnalyzeStock -- "Yes" --> DisplayStock["Display Stock Terminal"]
+    DisplayStock --> FetchOHLCV["Fetch OHLCV yfinance Data"]
+    FetchOHLCV --> RenderCandle[/"Render Canvas Candlestick & EMAs"/]
     
-    RenderCandle --> RunAI{"Run AI Price<br/>Prediction?"}:::decision
-    RunAI -- "Yes" --> SelectModel[/Select Model Architecture<br/>(BiLSTM / XGBoost / Prophet)/]:::io
-    SelectModel --> ExecAI[Execute Inference<br/>Algorithm]:::process
-    ExecAI --> DisplayForecast[/Display Forecast Target<br/>& Loss Metrics/]:::io
+    RenderCandle --> RunAI{"Run AI Price Prediction?"}
+    RunAI -- "Yes" --> SelectModel[/"Select Model: BiLSTM, XGBoost, Prophet"/]
+    SelectModel --> ExecAI["Execute Inference Algorithm"]
+    ExecAI --> DisplayForecast[/"Display Forecast Target & Loss Metrics"/]
     
-    DisplayForecast --> ExportCSV{"Export Run<br/>Log CSV?"}:::decision
-    ExportCSV -- "Yes" --> DownloadCSV[/Download Evaluation<br/>Run Logs/]:::io --> LoopReturn[ ]
-    ExportCSV -- "No" --> LoopReturn
+    DisplayForecast --> ExportCSV{"Export Run Log CSV?"}
+    ExportCSV -- "Yes" --> DownloadCSV[/"Download Evaluation Run Logs"/] --> Dashboard
+    ExportCSV -- "No" --> Dashboard
 
-    RunAI -- "No" --> ChangeCurrency{"Change Base<br/>Currency?"}:::decision
-    ChangeCurrency -- "Yes" --> SelectCurr[/Select Currency<br/>(MYR / USD / EUR / SGD)/]:::io
-    SelectCurr --> ConvertPrice[Recalculate<br/>Rates]:::process
-    ConvertPrice --> DisplayCurr[/Display Converted<br/>Price Badge/]:::io --> LoopReturn
+    RunAI -- "No" --> ChangeCurrency{"Change Base Currency?"}
+    ChangeCurrency -- "Yes" --> SelectCurr[/"Select Currency: MYR, USD, EUR, SGD"/]
+    SelectCurr --> ConvertPrice["Recalculate Exchange Rates"]
+    ConvertPrice --> DisplayCurr[/"Display Converted Price Badge"/] --> Dashboard
 
-    ChangeCurrency -- "No" --> ViewOrderBook{"View Order<br/>Book?"}:::decision
-    ViewOrderBook -- "Yes" --> DisplayBook[/Display Synthetic<br/>Depth Ladder/]:::io --> LoopReturn
+    ChangeCurrency -- "No" --> ViewOrderBook{"View Order Book?"}
+    ViewOrderBook -- "Yes" --> DisplayBook[/"Display Synthetic Depth Ladder"/] --> Dashboard
 
-    ViewOrderBook -- "No" --> SentimentVote{"Vote Market<br/>Sentiment?"}:::decision
-    SentimentVote -- "Yes" --> SubmitVote[/Submit Bullish or<br/>Bearish Vote/]:::io
-    SubmitVote --> UpdateSentiment[Update Sentiment<br/>Score]:::process --> LoopReturn
-    SentimentVote -- "No" --> LoopReturn
+    ViewOrderBook -- "No" --> SentimentVote{"Vote Market Sentiment?"}
+    SentimentVote -- "Yes" --> SubmitVote[/"Submit Bullish or Bearish Vote"/]
+    SubmitVote --> UpdateSentiment["Update Sentiment Score"] --> Dashboard
+    SentimentVote -- "No" --> Dashboard
 
     %% Spine 2: Macroeconomic Surveillance
-    AnalyzeStock -- "No" --> ViewMacro{"Monitor Macro<br/>Indicators?"}:::decision
-    ViewMacro -- "Yes" --> FetchMacro[Query FRED API<br/>& BNM Series]:::process
-    FetchMacro --> DisplayGauge[/Display Policy Corridor<br/>Gauge & Newswire/]:::io --> LoopReturn
+    AnalyzeStock -- "No" --> ViewMacro{"Monitor Macro Indicators?"}
+    ViewMacro -- "Yes" --> FetchMacro["Query FRED API & BNM Series"]
+    FetchMacro --> DisplayGauge[/"Display Policy Corridor Gauge & Newswire"/] --> Dashboard
 
     %% Spine 3: Sovereign Yield Curves
-    ViewMacro -- "No" --> ViewYields{"Analyze Sovereign<br/>Yield Curves?"}:::decision
-    ViewYields -- "Yes" --> FetchYields[Ingest MGS, UST<br/>& Bund Yields]:::process
-    FetchYields --> DisplayYields[/Display 10Y-2Y Spread<br/>& Term Structure/]:::io --> LoopReturn
+    ViewMacro -- "No" --> ViewYields{"Analyze Sovereign Yield Curves?"}
+    ViewYields -- "Yes" --> FetchYields["Ingest MGS, UST & Bund Yields"]
+    FetchYields --> DisplayYields[/"Display 10Y-2Y Spread & Term Structure"/] --> Dashboard
 
     %% Spine 4: User Profile & Workspace Settings
-    ViewYields -- "No" --> ViewProfile{"View User<br/>Profile?"}:::decision
-    ViewProfile -- "Yes" --> DisplayProfile[View User<br/>Details]:::process
-    DisplayProfile --> UpdateProfile{"Update User<br/>Details?"}:::decision
-    UpdateProfile -- "Yes" --> EnterProfile[/Enter User Details<br/>& Alert Rules/]:::io
-    EnterProfile --> SaveProfile[Update User<br/>Details]:::process --> LoopReturn
-    UpdateProfile -- "No" --> LoopReturn
+    ViewYields -- "No" --> ViewProfile{"View User Profile?"}
+    ViewProfile -- "Yes" --> DisplayProfile["View User Details"]
+    DisplayProfile --> UpdateProfile{"Update User Details?"}
+    UpdateProfile -- "Yes" --> EnterProfile[/"Enter User Details & Alert Rules"/]
+    EnterProfile --> SaveProfile["Update User Details"] --> Dashboard
+    UpdateProfile -- "No" --> Dashboard
 
     %% Spine 5: Session Termination
-    ViewProfile -- "No" --> Logout{"Logout?"}:::decision
-    Logout -- "Yes" --> End([End]):::terminal
-    Logout -- "No" --> LoopReturn
+    ViewProfile -- "No" --> Logout{"Logout?"}
+    Logout -- "Yes" --> End(["End"])
+    Logout -- "No" --> Dashboard
 
-    %% Loopback to Dashboard
-    LoopReturn --> Dashboard
-```
-
----
-
-## 📌 2. Modular 4-Layer Architecture Flowchart (Compact Option)
-
-```mermaid
-%%{init: {'theme': 'dark'}}%%
-flowchart TD
-    subgraph L1 ["1. Authentication Layer"]
-        A([Start: User Access]) --> B{Valid Session?}
-        B -- No --> C[Login / OAuth 2.0 / OTP]
-        C --> D[Issue Session Token]
-        B -- Yes --> E[Load Settings]
-        D --> E
-    end
-
-    subgraph L2 ["2. Workspace & Routing"]
-        E --> F[Initialize Workspace]
-        F --> G{Select View}
-        G --> H[1. Macro & Equities]
-        G --> I[2. Central Bank Policy]
-        G --> J[3. Stock Candlesticks]
-        G --> K[4. Global Yields]
-        G --> L[5. AI Model Console]
-        G --> M[6. Settings & Profile]
-    end
-
-    subgraph L3 ["3. Analytics & Processing"]
-        H & I & J & K --> N[Ingest Market & FRED Data]
-        N --> O[HTML5 Canvas 2D Vector Rendering]
-        L --> P[Run AI Model: BiLSTM / XGBoost]
-        P --> Q[Calculate Metrics: RMSE / MAE]
-        M --> R[Update Profile Settings]
-    end
-
-    subgraph L4 ["4. Alerts & Persistence"]
-        O --> S{Threshold Breached?}
-        S -- Yes --> T[Audio Synth Alert & Banner]
-        S -- No --> U[Display Output]
-        T --> U
-        Q --> V[(Save to MODEL_RUN_LOGS)]
-        R --> W[(Save to DB)]
-        U --> X{Action?}
-        X -- Switch --> G
-        X -- Exit --> Y([Logout & End])
-    end
+    %% -----------------------------------------------------------------
+    %% CLASS ASSIGNMENTS
+    %% -----------------------------------------------------------------
+    class Start,End terminal;
+    class NewUser,ValidateSignup,ValidCreds,ManageWatchlist,AddStock,RemoveStock,AnalyzeStock,RunAI,ExportCSV,ChangeCurrency,ViewOrderBook,SentimentVote,ViewMacro,ViewYields,ViewProfile,UpdateProfile,Logout decision;
+    class Signup,CreateAccount,Login,ResetPW,Dashboard,UpdateWatchlist,DisplayStock,FetchOHLCV,ExecAI,ConvertPrice,UpdateSentiment,FetchMacro,FetchYields,DisplayProfile,SaveProfile process;
+    class EnterCreds,EnterStock,PromptRemove,RenderCandle,SelectModel,DisplayForecast,DownloadCSV,SelectCurr,DisplayCurr,DisplayBook,SubmitVote,DisplayGauge,DisplayYields,EnterProfile io;
 ```
