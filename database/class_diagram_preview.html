@@ -1,0 +1,165 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>MacroPulse UML Class Diagram</title>
+  <script src="https://cdn.jsdelivr.net/npm/mermaid@10/dist/mermaid.min.js"></script>
+  <style>
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+    body {
+      background-color: #0b0f19;
+      color: #e2e8f0;
+      font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+      padding: 30px;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+    }
+    header {
+      text-align: center;
+      margin-bottom: 20px;
+    }
+    h1 {
+      font-size: 24px;
+      color: #38bdf8;
+      margin-bottom: 6px;
+    }
+    p {
+      color: #94a3b8;
+      font-size: 13.5px;
+    }
+    .toolbar {
+      margin-bottom: 20px;
+      display: flex;
+      gap: 12px;
+    }
+    button {
+      background: #0284c7;
+      color: #ffffff;
+      border: none;
+      padding: 8px 18px;
+      border-radius: 6px;
+      font-size: 13px;
+      font-weight: 600;
+      cursor: pointer;
+      transition: background 0.2s;
+    }
+    button:hover { background: #0369a1; }
+    .card {
+      background: #111827;
+      border: 1px solid #1f2937;
+      border-radius: 12px;
+      padding: 24px;
+      max-width: 98vw;
+      overflow-x: auto;
+      box-shadow: 0 10px 25px rgba(0,0,0,0.5);
+    }
+    .mermaid {
+      display: flex;
+      justify-content: center;
+    }
+    @media print {
+      body { background: #fff !important; color: #000 !important; }
+      .toolbar, header { display: none; }
+      .card { background: #fff !important; border: none !important; box-shadow: none !important; }
+    }
+  </style>
+</head>
+<body>
+  <header>
+    <h1>📐 MacroPulse Terminal — UML Class Diagram</h1>
+    <p>Object-Oriented Domain Model: Entity Attributes &bull; Operations &bull; Aggregations &bull; Multiplicities</p>
+  </header>
+  <div class="toolbar">
+    <button onclick="window.print()">🖨️ Export PDF / Print for FYP</button>
+  </div>
+  <div class="card">
+    <pre class="mermaid">
+%%{init: {
+  'theme': 'dark',
+  'themeVariables': {
+    'darkMode': true,
+    'background': '#111827',
+    'primaryColor': '#1e293b',
+    'primaryBorderColor': '#38bdf8',
+    'primaryTextColor': '#f8fafc',
+    'lineColor': '#0ea5e9'
+  }
+}}%%
+classDiagram
+    class User {
+        +int userID
+        +String name
+        +String email
+        +String passwordHash
+        +Object notificationPreferences
+        +login() boolean
+        +register() boolean
+        +updateProfile() boolean
+        +updateNotificationToggles() void
+    }
+
+    class AssetWatchlist {
+        +int watchlistID
+        +int userID
+        +List tickerSymbols
+        +addAsset(ticker) boolean
+        +removeAsset(ticker) boolean
+        +fetchWatchlistDetails() List
+    }
+
+    class AssetEquity {
+        +String ticker
+        +String companyName
+        +double currentPrice
+        +double percentageChange
+        +long volume
+        +fetchRealTimePrice() void
+        +getHistoricalData(timeframe) List
+    }
+
+    class MacroIndicator {
+        +String indicatorName
+        +double currentValue
+        +double directionalShift
+        +String lastUpdated
+        +fetchLatestMacroGrid() List
+        +getHistoricalTrends() List
+    }
+
+    class AnalyticsDashboard {
+        +List activeStocks
+        +List activeMacroVariables
+        +renderAssetPriceCanvas() void
+        +displayMacroOverlayChart() void
+        +computeStatisticalCorrelationMatrix() Matrix
+    }
+
+    class PredictionModel {
+        +int modelID
+        +String modelType
+        +double meanAbsoluteError
+        +double rootMeanSquaredError
+        +double meanAbsolutePercentageError
+        +runForecastingHorizon(ticker) List
+        +getAlgorithmBenchmarks() Map
+    }
+
+    %% Relationships
+    User "1" --> "1" AssetWatchlist : manages
+    AssetWatchlist "1" o-- "1..*" AssetEquity : contains
+    AnalyticsDashboard "1" o-- "1..*" MacroIndicator : cross_references
+    AnalyticsDashboard "1" o-- "1..*" AssetEquity : aggregates
+    AnalyticsDashboard "1" --> "1..*" PredictionModel : displays_benchmarks
+    PredictionModel "1" ..> "1" AssetEquity : forecasts
+    </pre>
+  </div>
+  <script>
+    mermaid.initialize({
+      startOnLoad: true,
+      theme: 'dark'
+    });
+  </script>
+</body>
+</html>
