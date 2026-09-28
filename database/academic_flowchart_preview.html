@@ -1,18 +1,81 @@
-# 🔄 MacroPulse Institutional Terminal — System Flowcharts
-
-This document provides both the **Academic System Flowchart** (following standard software engineering notations with custom shape styles matching your thesis format) and the **Modular 4-Layer Flowchart**.
-
----
-
-## 📌 1. Academic System Flowchart (Matching Your Reference Image)
-
-This flowchart implements the exact visual conventions from your reference diagram:
-* **Terminators (`Start` / `End`)**: Rounded pill shapes (`([Start])`) with soft purple/pink borders.
-* **Decisions**: Diamond shapes (`{Decision?}`) with clean blue outlines.
-* **Input / Output Operations**: Slanted parallelograms (`[/Input Data/]`) in soft amber/yellow.
-* **Internal Processes**: Rectangles (`[Process]`) with soft pink fills.
-
-```mermaid
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>MacroPulse Academic System Flowchart</title>
+  <script src="https://cdn.jsdelivr.net/npm/mermaid@10/dist/mermaid.min.js"></script>
+  <style>
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+    body {
+      background-color: #ffffff;
+      color: #1e293b;
+      font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+      padding: 30px;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+    }
+    header {
+      text-align: center;
+      margin-bottom: 20px;
+    }
+    h1 {
+      font-size: 24px;
+      color: #0f172a;
+      margin-bottom: 6px;
+    }
+    p {
+      color: #64748b;
+      font-size: 13.5px;
+    }
+    .toolbar {
+      margin-bottom: 20px;
+      display: flex;
+      gap: 12px;
+    }
+    button {
+      background: #4338ca;
+      color: #ffffff;
+      border: none;
+      padding: 8px 18px;
+      border-radius: 6px;
+      font-size: 13px;
+      font-weight: 600;
+      cursor: pointer;
+      transition: background 0.2s;
+    }
+    button:hover { background: #3730a3; }
+    .card {
+      background: #ffffff;
+      border: 1px solid #e2e8f0;
+      border-radius: 8px;
+      padding: 24px;
+      max-width: 98vw;
+      overflow-x: auto;
+      box-shadow: 0 4px 16px rgba(0,0,0,0.06);
+    }
+    .mermaid {
+      display: flex;
+      justify-content: center;
+    }
+    @media print {
+      body { padding: 0; }
+      .toolbar, header { display: none; }
+      .card { border: none; box-shadow: none; padding: 0; }
+    }
+  </style>
+</head>
+<body>
+  <header>
+    <h1>📈 MacroPulse Terminal — Academic System Flowchart</h1>
+    <p>Standard Software Engineering Notation: Rounded Start/End, Process Rectangles, Input/Output Parallelograms & Decision Diamonds</p>
+  </header>
+  <div class="toolbar">
+    <button onclick="window.print()">🖨️ Export PDF / Print for FYP</button>
+  </div>
+  <div class="card">
+    <pre class="mermaid">
 %%{init: {
   'theme': 'base',
   'themeVariables': {
@@ -120,51 +183,21 @@ flowchart TD
 
     %% Loopback to Dashboard
     LoopReturn --> Dashboard
-```
-
----
-
-## 📌 2. Modular 4-Layer Architecture Flowchart (Compact Option)
-
-```mermaid
-%%{init: {'theme': 'dark'}}%%
-flowchart TD
-    subgraph L1 ["1. Authentication Layer"]
-        A([Start: User Access]) --> B{Valid Session?}
-        B -- No --> C[Login / OAuth 2.0 / OTP]
-        C --> D[Issue Session Token]
-        B -- Yes --> E[Load Settings]
-        D --> E
-    end
-
-    subgraph L2 ["2. Workspace & Routing"]
-        E --> F[Initialize Workspace]
-        F --> G{Select View}
-        G --> H[1. Macro & Equities]
-        G --> I[2. Central Bank Policy]
-        G --> J[3. Stock Candlesticks]
-        G --> K[4. Global Yields]
-        G --> L[5. AI Model Console]
-        G --> M[6. Settings & Profile]
-    end
-
-    subgraph L3 ["3. Analytics & Processing"]
-        H & I & J & K --> N[Ingest Market & FRED Data]
-        N --> O[HTML5 Canvas 2D Vector Rendering]
-        L --> P[Run AI Model: BiLSTM / XGBoost]
-        P --> Q[Calculate Metrics: RMSE / MAE]
-        M --> R[Update Profile Settings]
-    end
-
-    subgraph L4 ["4. Alerts & Persistence"]
-        O --> S{Threshold Breached?}
-        S -- Yes --> T[Audio Synth Alert & Banner]
-        S -- No --> U[Display Output]
-        T --> U
-        Q --> V[(Save to MODEL_RUN_LOGS)]
-        R --> W[(Save to DB)]
-        U --> X{Action?}
-        X -- Switch --> G
-        X -- Exit --> Y([Logout & End])
-    end
-```
+    </pre>
+  </div>
+  <script>
+    mermaid.initialize({
+      startOnLoad: true,
+      theme: 'base',
+      themeVariables: {
+        primaryColor: '#fce7f3',
+        primaryTextColor: '#1e1b4b',
+        primaryBorderColor: '#ec4899',
+        lineColor: '#475569',
+        secondaryColor: '#fef3c7',
+        tertiaryColor: '#ffffff'
+      }
+    });
+  </script>
+</body>
+</html>
