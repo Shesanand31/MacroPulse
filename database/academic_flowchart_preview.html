@@ -77,7 +77,7 @@
   <div class="card">
     <pre class="mermaid">
 flowchart TD
-    %% Custom Styling Classes matching user picture
+    %% Custom Styling Classes matching reference diagram
     classDef terminal fill:#f3e8ff,stroke:#a855f7,stroke-width:2px,color:#1e1b4b;
     classDef decision fill:#ffffff,stroke:#3b82f6,stroke-width:1.8px,color:#1e1b4b;
     classDef process fill:#fce7f3,stroke:#ec4899,stroke-width:1.5px,color:#1e1b4b;
@@ -86,7 +86,7 @@ flowchart TD
     %% -----------------------------------------------------------------
     %% 1. AUTHENTICATION & REGISTRATION
     %% -----------------------------------------------------------------
-    Start(["Start"]) --> NewUser{"New User?"}
+    StartNode(["Start"]) --> NewUser{"New User?"}
     NewUser -- "Yes" --> Signup["Signup"]
     Signup --> ValidateSignup{"Validate Credentials?"}
     ValidateSignup -- "No" --> Signup
@@ -163,17 +163,18 @@ flowchart TD
     EnterProfile --> SaveProfile["Update User Details"] --> Dashboard
     UpdateProfile -- "No" --> Dashboard
 
-    %% Spine 5: Session Termination
+    %% Spine 5: Session Termination & Explicit End Part
     ViewProfile -- "No" --> Logout{"Logout?"}
-    Logout -- "Yes" --> End(["End"])
     Logout -- "No" --> Dashboard
+    Logout -- "Yes" --> ClearSession["Clear Session & Invalidate Token"]
+    ClearSession --> EndNode(["End"])
 
     %% -----------------------------------------------------------------
     %% CLASS ASSIGNMENTS
     %% -----------------------------------------------------------------
-    class Start,End terminal;
+    class StartNode,EndNode terminal;
     class NewUser,ValidateSignup,ValidCreds,ManageWatchlist,AddStock,RemoveStock,AnalyzeStock,RunAI,ExportCSV,ChangeCurrency,ViewOrderBook,SentimentVote,ViewMacro,ViewYields,ViewProfile,UpdateProfile,Logout decision;
-    class Signup,CreateAccount,Login,ResetPW,Dashboard,UpdateWatchlist,DisplayStock,FetchOHLCV,ExecAI,ConvertPrice,UpdateSentiment,FetchMacro,FetchYields,DisplayProfile,SaveProfile process;
+    class Signup,CreateAccount,Login,ResetPW,Dashboard,UpdateWatchlist,DisplayStock,FetchOHLCV,ExecAI,ConvertPrice,UpdateSentiment,FetchMacro,FetchYields,DisplayProfile,SaveProfile,ClearSession process;
     class EnterCreds,EnterStock,PromptRemove,RenderCandle,SelectModel,DisplayForecast,DownloadCSV,SelectCurr,DisplayCurr,DisplayBook,SubmitVote,DisplayGauge,DisplayYields,EnterProfile io;
     </pre>
   </div>

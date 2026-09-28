@@ -1,14 +1,15 @@
 # 🔄 MacroPulse Institutional Terminal — Academic System Flowchart
 
 A software engineering system flowchart adhering strictly to standard Mermaid.js syntax without parser errors, formatted with the exact visual language of your reference diagram:
-* **Terminators (`Start` / `End`)**: Rounded pill shapes (`([Start])`) with purple outlines.
+* **Terminators (`Start` / `End`)**: Rounded pill shapes (`([Start])`, `([End])`) with purple outlines.
 * **Decisions**: Diamond shapes (`{Decision?}`) with clean blue outlines and `Yes` / `No` branches.
 * **Input / Output Operations**: Slanted amber parallelograms (`[/Input or Display Data/]`).
 * **Internal Processes**: Soft pink rectangles (`[Process Step]`).
+* **Explicit Exit Phase**: Clearly routes from `Logout?` $\rightarrow$ `Clear Session & Invalidate Token` $\rightarrow$ `([End])`.
 
 ---
 
-## 📌 1. Error-Free Mermaid.js Flowchart Code
+## 📌 1. Error-Free Mermaid.js Flowchart Code (With Explicit End Part)
 
 ```mermaid
 %%{init: {
@@ -32,7 +33,7 @@ flowchart TD
     %% -----------------------------------------------------------------
     %% 1. AUTHENTICATION & REGISTRATION
     %% -----------------------------------------------------------------
-    Start(["Start"]) --> NewUser{"New User?"}
+    StartNode(["Start"]) --> NewUser{"New User?"}
     NewUser -- "Yes" --> Signup["Signup"]
     Signup --> ValidateSignup{"Validate Credentials?"}
     ValidateSignup -- "No" --> Signup
@@ -109,16 +110,17 @@ flowchart TD
     EnterProfile --> SaveProfile["Update User Details"] --> Dashboard
     UpdateProfile -- "No" --> Dashboard
 
-    %% Spine 5: Session Termination
+    %% Spine 5: Explicit Session Termination & End Part
     ViewProfile -- "No" --> Logout{"Logout?"}
-    Logout -- "Yes" --> End(["End"])
     Logout -- "No" --> Dashboard
+    Logout -- "Yes" --> ClearSession["Clear Session & Invalidate Token"]
+    ClearSession --> EndNode(["End"])
 
     %% -----------------------------------------------------------------
     %% CLASS ASSIGNMENTS
     %% -----------------------------------------------------------------
-    class Start,End terminal;
+    class StartNode,EndNode terminal;
     class NewUser,ValidateSignup,ValidCreds,ManageWatchlist,AddStock,RemoveStock,AnalyzeStock,RunAI,ExportCSV,ChangeCurrency,ViewOrderBook,SentimentVote,ViewMacro,ViewYields,ViewProfile,UpdateProfile,Logout decision;
-    class Signup,CreateAccount,Login,ResetPW,Dashboard,UpdateWatchlist,DisplayStock,FetchOHLCV,ExecAI,ConvertPrice,UpdateSentiment,FetchMacro,FetchYields,DisplayProfile,SaveProfile process;
+    class Signup,CreateAccount,Login,ResetPW,Dashboard,UpdateWatchlist,DisplayStock,FetchOHLCV,ExecAI,ConvertPrice,UpdateSentiment,FetchMacro,FetchYields,DisplayProfile,SaveProfile,ClearSession process;
     class EnterCreds,EnterStock,PromptRemove,RenderCandle,SelectModel,DisplayForecast,DownloadCSV,SelectCurr,DisplayCurr,DisplayBook,SubmitVote,DisplayGauge,DisplayYields,EnterProfile io;
 ```
