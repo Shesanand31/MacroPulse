@@ -18,21 +18,7 @@
   <script src="https://accounts.google.com/gsi/client" async defer onload="window.onGoogleLibraryLoad &amp;&amp; window.onGoogleLibraryLoad()"></script>
 
   <!-- Main Stylesheet -->
-  <link rel="stylesheet" href="css/styles.css?v=20261023-theme-mode-v1" />
-
-  <!-- Anti-Flash Theme Initializer -->
-  <script>
-    (function() {
-      try {
-        var savedTheme = localStorage.getItem('macropulse_theme') || localStorage.getItem('mp_theme') || 'dark';
-        if (savedTheme === 'light') {
-          document.documentElement.setAttribute('data-theme', 'light');
-        } else {
-          document.documentElement.setAttribute('data-theme', 'dark');
-        }
-      } catch (e) {}
-    })();
-  </script>
+  <link rel="stylesheet" href="css/styles.css?v=20260916-google-sso-v12" />
 </head>
 <body>
 
@@ -151,11 +137,6 @@
           <button class="btn btn-primary" id="exportReportBtn">
             <i data-lucide="download" style="width: 16px; height: 16px;"></i>
             <span>Export Market Report</span>
-          </button>
-
-          <!-- Theme Toggle (Light / Dark Mode) -->
-          <button class="btn-icon" id="themeToggleBtn" title="Toggle Light / Dark Mode" aria-label="Toggle theme">
-            <i data-lucide="sun" id="themeToggleIcon" style="width: 18px; height: 18px;"></i>
           </button>
 
           <!-- Notifications -->
@@ -1775,15 +1756,6 @@
                       <option value="1Y">1 Year (Annual Baseline)</option>
                       <option value="5Y">5 Years (Structural Sovereign Trend)</option>
                     </select>
-                  </div>
-
-                  <div class="form-group">
-                    <label class="form-label">Terminal Color Theme</label>
-                    <select class="form-select" id="workspaceThemeSelect">
-                      <option value="dark" selected>Terminal Dark (Bloomberg High-Contrast)</option>
-                      <option value="light">Financial Day (Crisp Light Theme)</option>
-                    </select>
-                    <p style="font-size: 0.72rem; color: var(--text-muted); margin-top: 4px;">Select terminal visual appearance or toggle quickly via the top navigation bar.</p>
                   </div>
                 </div>
               </div>

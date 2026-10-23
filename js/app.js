@@ -722,124 +722,6 @@ document.addEventListener('DOMContentLoaded', () => {
   }
 
   // ==========================================
-  // Light / Dark Mode Theme Controller
-  // ==========================================
-  const themeToggleBtn = document.getElementById('themeToggleBtn');
-  const themeToggleIcon = document.getElementById('themeToggleIcon');
-
-  function updateThemeUI(theme) {
-    const isLight = theme === 'light';
-    const wsThemeSelect = document.getElementById('workspaceThemeSelect');
-    if (wsThemeSelect && wsThemeSelect.value !== theme) {
-      wsThemeSelect.value = theme;
-    }
-
-    if (themeToggleBtn) {
-      themeToggleBtn.setAttribute('title', isLight ? 'Switch to Dark Mode (Terminal High-Contrast)' : 'Switch to Light Mode (Financial Day)');
-      themeToggleBtn.setAttribute('aria-label', isLight ? 'Switch to Dark Mode' : 'Switch to Light Mode');
-    }
-
-    if (themeToggleIcon) {
-      themeToggleIcon.setAttribute('data-lucide', isLight ? 'moon' : 'sun');
-      if (window.lucide) {
-        lucide.createIcons();
-      }
-    }
-  }
-
-  function updateChartTheme(theme) {
-    const isLight = theme === 'light';
-    const gridColor = isLight ? 'rgba(15, 23, 42, 0.06)' : 'rgba(255, 255, 255, 0.04)';
-    const textColor = isLight ? '#475569' : '#94a3b8';
-    const tooltipBg = isLight ? 'rgba(255, 255, 255, 0.98)' : 'rgba(15, 23, 42, 0.96)';
-    const tooltipTitle = isLight ? '#0f172a' : '#ffffff';
-    const tooltipBody = isLight ? '#334155' : '#cbd5e1';
-    const tooltipBorder = isLight ? 'rgba(15, 23, 42, 0.12)' : 'rgba(124, 58, 237, 0.45)';
-
-    if (window.Chart) {
-      Chart.defaults.color = textColor;
-      Chart.defaults.borderColor = gridColor;
-    }
-
-    const chartInstances = [
-      typeof waveChartInstance !== 'undefined' ? waveChartInstance : null,
-      typeof yieldCurveChartInstance !== 'undefined' ? yieldCurveChartInstance : null,
-      typeof rpsChartInstance !== 'undefined' ? rpsChartInstance : null,
-      typeof fredSparklineChartInstance !== 'undefined' ? fredSparklineChartInstance : null,
-      typeof forecastChartInstance !== 'undefined' ? forecastChartInstance : null,
-      typeof diagnosticsChartInstance !== 'undefined' ? diagnosticsChartInstance : null
-    ];
-
-    chartInstances.forEach(inst => {
-      if (!inst) return;
-      try {
-        if (inst.options && inst.options.scales) {
-          Object.values(inst.options.scales).forEach(scale => {
-            if (scale.grid) scale.grid.color = gridColor;
-            if (scale.ticks) scale.ticks.color = textColor;
-          });
-        }
-        if (inst.options && inst.options.plugins) {
-          if (inst.options.plugins.legend && inst.options.plugins.legend.labels) {
-            inst.options.plugins.legend.labels.color = isLight ? '#1e293b' : '#cbd5e1';
-          }
-          if (inst.options.plugins.tooltip) {
-            inst.options.plugins.tooltip.backgroundColor = tooltipBg;
-            inst.options.plugins.tooltip.titleColor = tooltipTitle;
-            inst.options.plugins.tooltip.bodyColor = tooltipBody;
-            inst.options.plugins.tooltip.borderColor = tooltipBorder;
-          }
-        }
-        inst.update();
-      } catch (e) {
-        console.warn('Chart theme update warning:', e);
-      }
-    });
-
-    if (typeof renderCandlesticks === 'function') {
-      renderCandlesticks();
-    }
-  }
-
-  function setTheme(theme, save = true) {
-    const activeTheme = theme === 'light' ? 'light' : 'dark';
-    document.documentElement.setAttribute('data-theme', activeTheme);
-    state.theme = activeTheme;
-
-    if (save) {
-      try {
-        localStorage.setItem('macropulse_theme', activeTheme);
-        localStorage.setItem('mp_theme', activeTheme);
-      } catch (e) {}
-    }
-
-    updateThemeUI(activeTheme);
-    updateChartTheme(activeTheme);
-  }
-
-  // Load and apply initial theme
-  const initialSavedTheme = localStorage.getItem('macropulse_theme') || localStorage.getItem('mp_theme') || 'dark';
-  setTheme(initialSavedTheme, false);
-
-  if (themeToggleBtn) {
-    themeToggleBtn.addEventListener('click', (e) => {
-      e.stopPropagation();
-      const current = document.documentElement.getAttribute('data-theme') || 'dark';
-      const targetTheme = current === 'light' ? 'dark' : 'light';
-      setTheme(targetTheme, true);
-      showToast(`Switched to ${targetTheme === 'light' ? 'Light Theme (Financial Day)' : 'Dark Theme (Terminal High-Contrast)'}`, 'info');
-    });
-  }
-
-  const wsThemeSelectEl = document.getElementById('workspaceThemeSelect');
-  if (wsThemeSelectEl) {
-    wsThemeSelectEl.addEventListener('change', (e) => {
-      setTheme(e.target.value, true);
-      showToast(`Workspace theme changed to ${e.target.value === 'light' ? 'Light' : 'Dark'} Mode`, 'info');
-    });
-  }
-
-  // ==========================================
   // Notifications Side Drawer Controller
   // ==========================================
   const notificationBtn = document.getElementById('notificationBtn');
@@ -1497,8 +1379,7 @@ document.addEventListener('DOMContentLoaded', () => {
     sectorFocus: 'all',
     currency: 'MYR',
     refreshRate: '15',
-    audioChime: true,
-    theme: 'dark'
+    audioChime: true
   };
 
   let currentWorkspaceSettings = { ...defaultWorkspaceSettings };
@@ -2165,16 +2046,6 @@ document.addEventListener('DOMContentLoaded', () => {
       candleCount: N
     };
 
-    // Layout configuration & theme detection
-    const isLightMode = document.documentElement.getAttribute('data-theme') === 'light';
-    const gridStroke = isLightMode ? 'rgba(15, 23, 42, 0.08)' : 'rgba(255, 255, 255, 0.06)';
-    const vertGridStroke = isLightMode ? 'rgba(15, 23, 42, 0.05)' : 'rgba(255, 255, 255, 0.03)';
-    const volSepStroke = isLightMode ? 'rgba(15, 23, 42, 0.12)' : 'rgba(255, 255, 255, 0.12)';
-    const priceTextColor = isLightMode ? '#334155' : '#94a3b8';
-    const labelTextColor = isLightMode ? '#64748b' : '#64748b';
-    const hoverColFill = isLightMode ? 'rgba(15, 23, 42, 0.04)' : 'rgba(255, 255, 255, 0.04)';
-    const hoverBorderColor = isLightMode ? '#0f172a' : '#ffffff';
-
     // 1. Draw Subtle Horizontal Grid Lines & Price Labels
     const numPriceTicks = 5;
     ctx.textAlign = 'right';
@@ -2186,7 +2057,7 @@ document.addEventListener('DOMContentLoaded', () => {
       const y = priceToY(priceVal);
 
       // Grid line
-      ctx.strokeStyle = gridStroke;
+      ctx.strokeStyle = 'rgba(255, 255, 255, 0.06)';
       ctx.lineWidth = 1;
       ctx.beginPath();
       ctx.moveTo(marginLeft, y);
@@ -2194,19 +2065,19 @@ document.addEventListener('DOMContentLoaded', () => {
       ctx.stroke();
 
       // Price text on right
-      ctx.fillStyle = priceTextColor;
+      ctx.fillStyle = '#94a3b8';
       ctx.fillText(`${currSign}${priceVal.toFixed(2)}`, displayWidth - 8, y);
     }
 
     // 2. Draw Volume Area Separator & Volume Labels
-    ctx.strokeStyle = volSepStroke;
+    ctx.strokeStyle = 'rgba(255, 255, 255, 0.12)';
     ctx.lineWidth = 1;
     ctx.beginPath();
     ctx.moveTo(marginLeft, volPlotTop - 8);
     ctx.lineTo(marginLeft + plotWidth, volPlotTop - 8);
     ctx.stroke();
 
-    ctx.fillStyle = labelTextColor;
+    ctx.fillStyle = '#64748b';
     ctx.font = '9px "JetBrains Mono", monospace';
     ctx.textAlign = 'left';
     ctx.fillText('VOLUME', marginLeft, volPlotTop - 1);
@@ -2220,14 +2091,14 @@ document.addEventListener('DOMContentLoaded', () => {
     ctx.textAlign = 'center';
     ctx.textBaseline = 'top';
     ctx.font = '10px "JetBrains Mono", monospace';
-    ctx.fillStyle = labelTextColor;
+    ctx.fillStyle = '#64748b';
 
     for (let i = 0; i < N; i += tickInterval) {
       const c = cList[i];
       const cx = marginLeft + (i + 0.5) * slotW;
 
       // Vertical subtle grid line
-      ctx.strokeStyle = vertGridStroke;
+      ctx.strokeStyle = 'rgba(255, 255, 255, 0.03)';
       ctx.beginPath();
       ctx.moveTo(cx, marginTop);
       ctx.lineTo(cx, volPlotBottom);
@@ -2242,7 +2113,7 @@ document.addEventListener('DOMContentLoaded', () => {
     // 4. Hover Column Highlight
     if (hoveredCandleIndex !== null && hoveredCandleIndex >= 0 && hoveredCandleIndex < N) {
       const colLeft = marginLeft + hoveredCandleIndex * slotW;
-      ctx.fillStyle = hoverColFill;
+      ctx.fillStyle = 'rgba(255, 255, 255, 0.04)';
       ctx.fillRect(colLeft, marginTop, slotW, volPlotBottom - marginTop);
     }
 
@@ -2277,7 +2148,7 @@ document.addEventListener('DOMContentLoaded', () => {
 
       // Active candle glow on hover
       if (isHovered) {
-        ctx.strokeStyle = hoverBorderColor;
+        ctx.strokeStyle = '#ffffff';
         ctx.lineWidth = 2;
         ctx.strokeRect(leftX - 1.5, topY - 1.5, candleW + 3, bodyH + 3);
       }
@@ -3592,7 +3463,6 @@ document.addEventListener('DOMContentLoaded', () => {
     const wsCurrency = document.getElementById('workspaceCurrency');
     const wsRefreshRate = document.getElementById('workspaceRefreshRate');
     const wsAudioChime = document.getElementById('workspaceAudioChime');
-    const wsThemeSelect = document.getElementById('workspaceThemeSelect');
 
     if (wsDefaultView) wsDefaultView.value = currentWorkspaceSettings.defaultView;
     if (wsBenchmark) wsBenchmark.value = currentWorkspaceSettings.benchmark;
@@ -3601,17 +3471,11 @@ document.addEventListener('DOMContentLoaded', () => {
     if (wsCurrency) wsCurrency.value = currentWorkspaceSettings.currency;
     if (wsRefreshRate) wsRefreshRate.value = currentWorkspaceSettings.refreshRate;
     if (wsAudioChime) wsAudioChime.checked = currentWorkspaceSettings.audioChime;
-    if (wsThemeSelect && currentWorkspaceSettings.theme) {
-      wsThemeSelect.value = currentWorkspaceSettings.theme;
-    }
 
     // Update active runtime state
     state.baseCurrency = currentWorkspaceSettings.currency || 'MYR';
     state.marketPollingRate = parseInt(currentWorkspaceSettings.refreshRate, 10) || 15;
     state.audioChimeEnabled = currentWorkspaceSettings.audioChime;
-    if (currentWorkspaceSettings.theme && typeof setTheme === 'function') {
-      setTheme(currentWorkspaceSettings.theme, false);
-    }
 
     rescheduleMarketPolling(state.marketPollingRate);
   }
@@ -3624,8 +3488,6 @@ document.addEventListener('DOMContentLoaded', () => {
     const wsCurrency = document.getElementById('workspaceCurrency')?.value || 'MYR';
     const wsRefreshRate = document.getElementById('workspaceRefreshRate')?.value || '15';
     const wsAudioChime = document.getElementById('workspaceAudioChime')?.checked ?? true;
-    const wsThemeSelect = document.getElementById('workspaceThemeSelect');
-    const wsTheme = wsThemeSelect?.value || document.documentElement.getAttribute('data-theme') || 'dark';
 
     currentWorkspaceSettings = {
       defaultView: wsDefaultView,
@@ -3634,17 +3496,13 @@ document.addEventListener('DOMContentLoaded', () => {
       sectorFocus: wsSectorFocus,
       currency: wsCurrency,
       refreshRate: wsRefreshRate,
-      audioChime: wsAudioChime,
-      theme: wsTheme
+      audioChime: wsAudioChime
     };
 
     // Update global terminal runtime state
     state.baseCurrency = wsCurrency;
     state.marketPollingRate = parseInt(wsRefreshRate, 10) || 15;
     state.audioChimeEnabled = wsAudioChime;
-    if (typeof setTheme === 'function') {
-      setTheme(wsTheme, true);
-    }
 
     // Recalibrate background polling intervals in real-time
     rescheduleMarketPolling(state.marketPollingRate);
